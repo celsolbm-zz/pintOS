@@ -45,12 +45,14 @@ alarm_priority_thread (void *aux UNUSED)
   int64_t start_time = timer_ticks ();
   while (timer_elapsed (start_time) == 0)
     continue;
+struct thread *cur=thread_current ();/*ADICIONEI ISSO */
 
   /* Now we know we're at the very beginning of a timer tick, so
      we can call timer_sleep() without worrying about races
      between checking the time and a timer interrupt. */
+printf("about to call timer_sleep \n");
   timer_sleep (wake_time - timer_ticks ());
-
+  printf("STATUS DESSA THREAD %d",cur->status);/*ADICIONEI ISSO */
   /* Print a message on wake-up. */
   msg ("Thread %s woke up.", thread_name ());
 
