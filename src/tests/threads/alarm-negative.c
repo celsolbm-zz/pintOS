@@ -10,7 +10,7 @@
 void
 test_alarm_negative (void) 
 {
-  printf("shit:");
+  printf("teste");
   timer_sleep (-100);
   pass ();
 }
