@@ -65,8 +65,8 @@ was defined by us, will increment to the desired time value. Afterwards, the thr
 to the sleep list by the function add_to_sleep_list. After the add_to_sleep_list returns the current running thread is blockedby the thread_block() routine.
 The functions will be woken up by another defined function called check_wake_up_time(), which is called by the interrupt
 handler. The correct order to wake up the functions is going to be defined by the thread_unblock() function, which was
-modified to use the list_inser_ordered function instead, and use the priority of the threads as ther ordering element.
-The ordering will be perofmed by the priority_comp function defined by us. 
+modified to use the list_insert_ordered function instead, and use the priority of the threads as ther ordering element.
+The ordering will be performed by the priority_comp function defined by us. 
 
 
 >> A3: What steps are taken to minimize the amount of time spent in
@@ -131,7 +131,7 @@ struct semaphore_elem
   int priority;               /* Associated priority */
 };
 
-The priority element in the semaphore_elem thread is used for the cond_comp function that is utilized for ordering the waitingthreads by priority
+The priority element in the semaphore_elem thread is used for the cond_comp function that is utilized for ordering the waiting threads by priority
 
 /////
 
@@ -155,7 +155,7 @@ base_priority is the priority before the donation was performed.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
 
-
+PNG FILE SUBMITTED
 
 
 ---- ALGORITHMS ----
@@ -187,17 +187,13 @@ does not need an outside lock.
 First when the lock_release is called, is going to remove the lock from the holding_lock list, to catalog that the calling
 thread does not hold the lock anymore. Afterwards its going to be tested if the current thread holds any more locks. If it
 does, it is also checked if one of the waiters of said so lock has a higher priority than the current lock holder. If it does
-than priority donation is performed. If the current thread does not have any more locks, its priority is set back to
- priority.
+than priority donation is performed. If the current thread does not have any more locks, its priority is set back to base priority.
 ---- SYNCHRONIZATION ----
 
->> B6: Describe a potential race in thread_set_priority(
-
-
-----) and explain
+>> B6: Describe a potential race in thread_set_priority(----) and explain
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
-During the execution of thread_set_priority, the interruptions are disabled, so there isnt a chance of a timer interrupt
+During the execution of thread_set_priority, the interruptions are disabled, so there isn't a chance of a timer interrupt
 happening during the execution.The race condition in our case is avoided by the use of an ordered list in the modified
 thread_yield. We can prove it in the following way:
 Lets suppose thread A and B both have priority 28 and thread C has priority 27. A and B both calls thread_set_priority to 
