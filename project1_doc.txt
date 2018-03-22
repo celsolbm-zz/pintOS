@@ -61,7 +61,7 @@ variable to store the wake up time
 >> including the effects of the timer interrupt handler.
 
 When the function timer_sleep() is called, the thread element wake_up time which 
-was defined by us, will increament to the desired time value. Afterwards, the thread is going to be added
+was defined by us, will increment to the desired time value. Afterwards, the thread is going to be added
 to the sleep list by the function add_to_sleep_list. After the add_to_sleep_list returns the current running thread is blockedby the thread_block() routine.
 The functions will be woken up by another defined function called check_wake_up_time(), which is called by the interrupt
 handler. The correct order to wake up the functions is going to be defined by the thread_unblock() function, which was
@@ -85,8 +85,8 @@ its priority, so the outcome will always be deterministic no matter the order th
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
-Since interrupts are disable in the begining of the timer_sleep function than this situation would not be possible to occur,
-therefore we dont suffer from such issue. The only reason that we disabled interrupt was to be able to call our modified thread_block function.
+Since interrupts are disable in the beginning of the timer_sleep function than this situation would not be possible to occur,
+therefore we do not suffer from such issue. The only reason that we disabled interrupt was to be able to call our modified thread_block function.
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
@@ -175,7 +175,7 @@ thread (lets call it Tm) is lower than the priority of the current thread(lets c
 priority donation. Afterwards the priority of the Tm is set as the same priority of Th requesting the lock, and then sent
 to the nested_donate function. The nested donate function is going to check if there is a "chain"of donations that have to
 be performed (if Tm is waiting for another lock). If Tm is not waiting for a lock, the function nested_donate is going to
-return without performing any task and Th will be preempted by the function preempt_thread, and Tm will run, subsquently
+return without performing any task and Th will be preempted by the function preempt_thread, and Tm will run, subsequently
 realeasing the lock. If though, Tm is waiting for  lock, than the same procedure that happened in the function 
 lock_acquire happens in the nested_donated function. First it checks if the priority of the lock holder (lets call it Tl) is 
 lower than of the Tm, and if it is it performs a priority donation to Tl, and proceeds to cal nested_donate with Tl as an
@@ -185,7 +185,7 @@ does not need an outside lock.
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
 First when the lock_release is called, is going to remove the lock from the holding_lock list, to catalog that the calling
-thread does not hold the lock anymore.Afterwards its going to be tested if the current thread holds any more locks. If it
+thread does not hold the lock anymore. Afterwards its going to be tested if the current thread holds any more locks. If it
 does, it is also checked if one of the waiters of said so lock has a higher priority than the current lock holder. If it does
 than priority donation is performed. If the current thread does not have any more locks, its priority is set back to
  priority.
@@ -294,7 +294,7 @@ In the cases where the threads had the same priority, the thread with the lowest
 
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
-The amount of computation performed inside the interrupt is fairly small, since it is just calling of the functions to check to conditiosn for updating the recent_cpu and load_avg. THat way the amount of computational work necessary for that will be reduced.
+The amount of computation performed inside the interrupt is fairly small, since it is just calling of the functions to check to condition for updating the recent_cpu and load_avg. That way the amount of computational work necessary for that will be reduced.
 
 ---- RATIONALE ----
 
@@ -304,7 +304,7 @@ The amount of computation performed inside the interrupt is fairly small, since 
 >> refine or improve your design?
 Our design makes light use of the interrupt handler, since most functions and routines are defined into a separate header
 file. Also we have created a set of functions to specially handle the fixed point arithmetics, therefore we dont need to
-keep repeating loops or the same code over again along different functions, making the overall code more sucint and easy
+keep repeating loops or the same code over again along different functions, making the overall code more succint and easy
 to read.
 
 
