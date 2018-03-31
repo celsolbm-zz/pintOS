@@ -8,6 +8,8 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "devices/timer.h"
+#include "lib/string.h"
+#include <string.h>
 
 static thread_func alarm_priority_thread;
 static int64_t wake_time;
@@ -49,7 +51,47 @@ alarm_priority_thread (void *aux UNUSED)
   /* Now we know we're at the very beginning of a timer tick, so
      we can call timer_sleep() without worrying about races
      between checking the time and a timer interrupt. */
+
+
+
+   char s[] = "  String to  tokenize. ";
+   char *token, *save_ptr;
+
+
+
+   int counted = 0; // result
+
+    // state:
+    const char* it = s;
+    int inword = 0;
+
+    do switch(*it) {
+        case '\0': 
+        case ' ': case '\t': case '\n': case '\r': // TODO others?
+            if (inword) { inword = 0; counted++; }
+            break;
+        default: inword = 1;
+    } while(*it++);
+
+printf("number of words is = %d \n",counted);
+
+
+
+
+
+   for (token = strtok_r (s, " ", &save_ptr); token != NULL;
+        token = strtok_r (NULL, " ", &save_ptr))
+     printf ("'%s'\n", token);
+
+
+
+
   timer_sleep (wake_time - timer_ticks ());
+
+
+
+
+
 
   /* Print a message on wake-up. */
   msg ("Thread %s woke up.", thread_name ());

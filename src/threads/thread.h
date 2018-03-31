@@ -4,7 +4,8 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/synch.h"
+
+#include "userprog/process.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -84,37 +85,41 @@ typedef int tid_t;
 struct thread
   {
     /* Owned by thread.c. */
-    tid_t tid;                        /* Thread identifier. */
-    enum thread_status status;        /* Thread state. */
-    char name[16];                    /* Name (for debugging purposes). */
-    uint8_t *stack;                   /* Saved stack pointer. */
-    int priority;                     /* Priority. */
-    struct list_elem allelem;         /* List element for all threads list. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
+    int priority;                       /* Priority. */
+    struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
-    struct list_elem elem;            /* List element. */
-
-    /* Alarm clock */
-    struct list_elem sleep_elem;      /* Sleep list element */
-    int64_t wake_time;                /* Wake up time for this thread */
-
-    /* Priority donation */
-    struct list_elem wait_elem;       /* List element for lock thread list */
-    struct list holding_lock;         /* List of holding locks */
-    struct lock *waiting_lock;        /* Waiting lock */
-    int base_priority;                /* Actual priority before donation */
-
-    /* Advanced schedular */
-    int nice;                         /* Nice value */
-    int32_t recent_cpu;               /* Recent cpu for this thread */
+    struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                /* Page directory. */
+    uint32_t *pagedir;                  /* Page directory. */
+
+    /*
+     * Project 2: User Programs
+     */
+    struct list child_list;
+    pid_t parent_pid;   
+
+    /* 
+     * This process's information which is managed by parent of this process.
+     * This is needed because of synchronization between parent and child
+     * process.
+     */
+    struct child_info *chinfo_by_parent;  
+
+    /* file related information */
+    int min_fd;               /* Minimum fd for this thread */
+    struct list open_file;    /* Open file list */
+    struct file *executable;  /* Executable file for this process */
 #endif
 
     /* Owned by thread.c. */
-    unsigned magic;                   /* Detects stack overflow. */
+    unsigned magic;                     /* Detects stack overflow. */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -154,33 +159,8 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /*
- * Alarm clock
+ * Project 2: User Programs
  */
-void add_to_sleep_list (struct thread *);
-void check_wake_time (int64_t);
-int64_t get_next_wakeup_time (void);
-void update_next_wakeup_time (int64_t);
-
-/*
- * Priority scheduling
- */
-bool priority_comp (const struct list_elem *,
-                    const struct list_elem *,
-                    void *);
-void preempt_thread (struct thread *, struct lock *);
-void nested_donate (struct thread *);
-bool cond_comp (const struct list_elem *,
-                const struct list_elem *,
-                void *);
-
-/*
- * Advanced schedular
- */
-#define PRI_ALL (-1)    /* Used when calculating all thread's priority */
-void calc_load_avg (void);
-int count_ready_threads (void);
-void calc_recent_cpu (struct thread *);
-void recent_cpu_for_all_threads (struct thread *, void *);
-void calc_priority (struct thread *, void *);
+bool check_process_alive (pid_t pid);
 
 #endif /* threads/thread.h */

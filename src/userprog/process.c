@@ -18,14 +18,19 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+#include <stdio.h>
+#include "threads/malloc.h"
+#include "userprog/syscall.h"
+
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (const char *cmdline, void (**eip) (void), void **esp,
+  char **save_ptr);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-tid_t
+pid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
@@ -38,11 +43,19 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  char *save_ptr;
+  file_name = strtok_r ((char *) file_name, " ", &save_ptr);
+
+#if 0 /* debug */
+  //printf ("(process_execute) file_name: %s\n", file_name);
+  printf ("(process_execute) fn_copy: %s\n", fn_copy);
+#endif
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-  return tid;
+  return (pid_t)tid;
 }
 
 /* A thread function that loads a user process and starts it
@@ -54,12 +67,27 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  /* Extract program name */
+  char *save_ptr;
+  file_name = strtok_r (file_name, " ", &save_ptr);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (file_name, &if_.eip, &if_.esp, &save_ptr);
+  if (success)
+    thread_current ()->chinfo_by_parent->load_status = LOAD_SUCCESS;
+  else
+    thread_current ()->chinfo_by_parent->load_status = LOAD_FAIL;
+
+  /* Signal parent that is waiting for load status update */
+  sema_up (&thread_current ()->chinfo_by_parent->exec_sema);
+
+#if 0 /* debug */
+  printf("(start_process) Process %s start!\n", file_name);
+#endif
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -86,9 +114,32 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (pid_t child_pid) 
 {
-  return -1;
+  struct child_info *chinfo;
+  int exit_code;
+
+#if 0 /* debug */
+  printf ("(process_wait) Wait for child %d\n", child_pid);
+#endif
+  chinfo = get_child_info (child_pid);
+  if (chinfo == NULL)
+    return -1;
+
+  /* If parent is already waiting for the child, return -1 */
+  if (chinfo->wait_status == WAITED)
+    return -1;
+
+  /* Waiting for child to exit */
+  chinfo->wait_status = WAITED;
+  if (chinfo->exit_status == NOT_EXITED)
+    sema_down (&chinfo->exit_sema);
+
+  /* Retrieve child's exit code */
+  exit_code = chinfo->exit_code;
+  remove_child_info (chinfo);
+
+  return exit_code;
 }
 
 /* Free the current process's resources. */
@@ -97,6 +148,26 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  /* Close executable and destroy file list */
+  lock_acquire (&filesys_lock);
+  destroy_file_list ();
+  if (cur->executable)
+    file_close (cur->executable);
+  lock_release (&filesys_lock);
+
+  /* Destroy child list */
+  destroy_child_list ();
+
+  if (check_process_alive (cur->parent_pid) && cur->chinfo_by_parent &&
+      cur->executable) {
+    cur->chinfo_by_parent->exit_status = EXITED;
+    /* Inform this process's parent that this process is now exited */
+#if 0 /* debug */
+    printf ("(process_exit) Notify parent from %d\n", cur->tid);
+#endif
+    sema_up (&cur->chinfo_by_parent->exit_sema);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -195,7 +266,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, const char *command, char **save_ptr);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -206,7 +277,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp) 
+load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr) 
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -221,6 +292,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  lock_acquire (&filesys_lock);
+
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL) 
@@ -228,6 +301,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+
+  file_deny_write (file);
+  t->executable = file;
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -302,8 +378,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name, save_ptr))
     goto done;
+
+#if 0 /* debug */
+  printf ("(load) hex dump start\n");
+  hex_dump (0, (const void *)(*esp), 100, true);
+#endif
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -312,7 +393,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  lock_release (&filesys_lock);
   return success;
 }
 
@@ -427,7 +508,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, const char *command, char **save_ptr) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -438,9 +519,70 @@ setup_stack (void **esp)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
-      else
+      else {
         palloc_free_page (kpage);
+        return success;
+      }
     }
+
+  /* Setup stack */
+  char **argv = malloc (4 * sizeof(char *));
+  int argc = 0;
+  int argv_size = 4;
+  char *token, *argv_addr;
+
+  /* Setting up ARGV */
+  for (token = (char *)command; token != NULL;
+       token = strtok_r (NULL, " ", save_ptr)) {
+#if 0 /* debug */
+    printf ("(setup_stack) current token: %s\n", token);
+#endif
+    *esp -= (strlen (token) + 1); /* +1 for null character */
+    argv[argc] = *esp;
+    argc++;
+    if (argv_size <= argc) {
+      /* Realloc argv so that it can store more command arguments */
+      argv_size *= 2;
+      argv = realloc (argv, argv_size * sizeof(char *));
+      if (argv == NULL)
+        return false;
+    }
+
+    /* Save actual string */
+    memcpy (*esp, token, strlen (token) + 1);
+  }
+  argv[argc] = 0;
+
+  /* Word align */
+  int i = 0;
+  i = ((size_t)*esp) % 4;
+  if (i) {
+    *esp -= i;
+    /* Last element of argv is NULL (or 0), so save this to do word align. */
+    memcpy (*esp, &argv[argc], i);
+  }
+
+  /* Now push ARGV data to the stack */
+  for (i = argc; i >= 0; i--) {
+    *esp -= sizeof(char *);
+    memcpy (*esp, &argv[i], sizeof(char *));
+  }
+
+  /* Push ARGV */
+  argv_addr = (char *)*esp;
+  *esp -= sizeof(char **);
+  memcpy (*esp, &argv_addr, sizeof(char **));
+
+  /* Push ARGC */
+  *esp -= sizeof(int);
+  memcpy (*esp, &argc, sizeof(int));
+
+  /* Push fake return address */
+  *esp -= sizeof(void *);
+  memcpy (*esp, &argv[argc], sizeof(void *));
+
+  free (argv);
+
   return success;
 }
 
@@ -462,4 +604,104 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+/*
+ * Process information functions
+ */
+
+/* Create child process information */
+struct child_info *
+create_child_info (pid_t pid)
+{
+  struct thread *cur = thread_current ();
+  struct child_info *chinfo;
+
+  chinfo = malloc (sizeof(struct child_info));
+  if (chinfo == NULL)
+    return NULL;
+
+  chinfo->pid = pid;
+  chinfo->load_status = LOAD_NOT_BEGIN;
+  chinfo->wait_status = NOT_WAITED;
+  chinfo->exit_status = NOT_EXITED;
+  sema_init (&chinfo->exec_sema, 0);
+  sema_init (&chinfo->exit_sema, 0);
+  chinfo->exit_code = 0;
+
+  list_push_back (&cur->child_list, &chinfo->child_elem);
+  
+  return chinfo;
+}
+
+/* Get child PID's information */
+struct child_info *
+get_child_info (pid_t pid)
+{
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->child_list);
+       e != list_end (&cur->child_list);
+       e = list_next (e)) {
+    struct child_info *chinfo = list_entry (e, struct child_info, child_elem);
+    if (chinfo->pid == pid)
+      return chinfo;
+  }
+
+  return NULL;
+}
+
+/* Remove child information from thread's child list */
+void
+remove_child_info (struct child_info *chinfo)
+{
+  list_remove (&chinfo->child_elem);
+  free (chinfo);
+}
+
+/* Destory child list of process */
+void
+destroy_child_list (void)
+{
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  while (!list_empty (&cur->child_list)) {
+    e = list_pop_front (&cur->child_list);
+    struct child_info *chinfo = list_entry (e, struct child_info, child_elem);
+    free (chinfo);
+  }
+}
+
+/* Get file info from thread's open file list */
+struct file_info *
+get_file_info (int fd)
+{
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->open_file);
+       e != list_end (&cur->open_file);
+       e = list_next (e)) {
+    struct file_info *finfo = list_entry (e, struct file_info, file_elem);
+    if (finfo->fd == fd)
+      return finfo;
+  }
+
+  return NULL;
+}
+
+/* Destroy open file list of process */
+void
+destroy_file_list (void)
+{
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  while (!list_empty (&cur->open_file)) {
+    e = list_pop_front (&cur->open_file);
+    struct file_info *finfo = list_entry (e, struct file_info, file_elem);
+    free (finfo);
+  }
 }
