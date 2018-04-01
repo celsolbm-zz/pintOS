@@ -3,7 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-
+#include <string.h>
 #include "devices/shutdown.h"
 #include "devices/input.h"
 #include "threads/vaddr.h"
@@ -17,6 +17,7 @@
 
 static void syscall_handler (struct intr_frame *);
 
+static int child_number=0;
 /*
  * Helper functions
  */
@@ -135,20 +136,31 @@ exit (int status)
 
 
 
-   /* Remove this lock from thread's holding_lock list */
-if (!list_empty (&thread_current ()->holding_lock))
-printf("oh shite there was something here \n "); 
 
 
 //free(cur->chinfo_by_parent);
-
+child_number--;
   printf ("%s: exit(%d)\n", cur->name, status);
   thread_exit ();
+
+//if (!strcmp(thread_current()->parent_name,"hue"))
+//{
+//free(thread_current()->chinfo_by_parent);
+
+//printf("\n \n my dad is the original multi oom and chinfo exists %d  \n \n ",cur->chinfo_by_parent->exit_code);
+
+//}
+
+
 }
 
 pid_t
 exec (const char *cmd_line)
 {
+
+if(child_number>31)
+return PID_ERROR;
+ 
   pid_t child_pid;
   struct child_info *chinfo;
 
@@ -166,7 +178,9 @@ exec (const char *cmd_line)
     remove_child_info (chinfo);
     return PID_ERROR;
   }
-    
+
+
+child_number++;    
   return child_pid;
 }
 
@@ -211,15 +225,12 @@ open (const char *file)
   temp_file = filesys_open (file);
   if (temp_file == NULL) {
     lock_release (&filesys_lock);
-printf("issue here first -1 open \n");
     return -1;
   }
 
   finfo = malloc (sizeof(struct file_info));
   if (finfo == NULL) {
     lock_release (&filesys_lock);
-printf("issue here second -1 open \n");
-
     return -1;
   }
   finfo->fd = cur->min_fd;
@@ -242,7 +253,6 @@ filesize (int fd)
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
-printf("issue here filesize -1");
     return -1;
   }
   ret = (int)file_length (finfo->file);
@@ -273,7 +283,6 @@ read (int fd, void *buffer, unsigned size)
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
-printf("issue on read-1 ");
     return -1;
   }
 
@@ -298,7 +307,6 @@ write (int fd, const void *buffer, unsigned size)
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
-    printf("issue -1 no write \n");
     return -1;
   }
 
@@ -369,12 +377,9 @@ close (int fd)
 void
 check_user_ptr (const void *uptr)
 {
-   /* Remove this lock from thread's holding_lock list */
-if (!list_empty (&thread_current ()->holding_lock))
-printf("oh shite there was something here \n ");
   
 if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
-{printf("user pointer errado \n");
+{
 //free(thread_current ()->chinfo_by_parent);    
 exit (-1);}
 }

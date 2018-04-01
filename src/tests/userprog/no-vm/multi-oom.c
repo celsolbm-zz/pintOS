@@ -72,20 +72,15 @@ consume_some_resources_and_die (int seed)
   switch (random_ulong () % 5)
     {
       case 0:
-	printf("it was case 0\n");
 	 *(int *) NULL = 42;
 	
       case 1:
-        printf("it was case 1\n");
 	return *(int *) NULL;
       case 2:
-        printf("it was case 2\n");
 	return *PHYS_BASE;
       case 3:
-	printf("it was case 3\n");
         *PHYS_BASE = 42;
       case 4:
-	printf("it was case 4\n");
         open ((char *)PHYS_BASE);
 	exit (-1);
 
@@ -113,7 +108,6 @@ main (int argc, char *argv[])
   bool is_at_root = (n == 0);
   if (is_at_root)
     msg ("begin");
-printf("n is %d \n", n);
   /* If -k is passed, crash this process. */
   if (argc > 2 && !strcmp(argv[2], "-k"))
     {
@@ -122,7 +116,6 @@ printf("n is %d \n", n);
     }
   int howmany = is_at_root ? EXPECTED_REPETITIONS : 1;
   int i, expected_depth = -1;
-//printf("reaches here, and passes the top stuff once \n");
   for (i = 0; i < howmany; i++)
     {
       pid_t child_pid;
@@ -147,7 +140,7 @@ printf("n is %d \n", n);
 
       /* If maximum depth is reached, return result. */
       if (child_pid == -1)
-{printf("maximum depth was reached n is %d  \n \n",n);
+{
         return n;}
  
      /* Else wait for child to report how deeply it was able to recurse. */

@@ -185,6 +185,7 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -206,9 +207,18 @@ thread_create (const char *name, int priority,
   if (chinfo == NULL)
     return TID_ERROR;
 
+
+
+
   t->chinfo_by_parent = chinfo;
   t->parent_pid = (pid_t)thread_tid ();
-  t->parent_name = thread_name();
+strlcpy (t->parent_name, thread_name(), sizeof t->parent_name);
+
+
+
+
+
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -303,11 +313,27 @@ thread_exit (void)
 
 //free(thread_current()->chinfo_by_parent);
 
+
+//if (thread_current()->chinfo_by_parent==NULL)
+//printf("SAPORRA EH NULL \n \n");
+//else
+//{free (thread_current()->chinfo_by_parent);
+//printf("OH SHIT IS NOT NULL \n \n");
+//}
+
+
+
+
   intr_disable ();
 
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
 //free(thread_current()->chinfo_by_parent);
+//if (!strcmp(thread_current()->parent_name,"hue"))
+//{printf("\n \n my dad is the original multi oom and chinfo exists %d  \n \n ",thread_current()->chinfo_by_parent->exit_status);
+//}
+
+
   schedule ();
   NOT_REACHED ();
 }
@@ -484,7 +510,7 @@ list_init (&t->holding_lock);
   list_init (&t->child_list);
   list_init (&t->open_file);
   t->parent_pid = NO_PARENT;
-  t->parent_name="NO";
+strlcpy (t->parent_name, "NO", sizeof t->parent_name);
   t->chinfo_by_parent = NULL;
   t->min_fd = INITIAL_FD; /* Initial fd is 2 */
   t->executable = NULL;

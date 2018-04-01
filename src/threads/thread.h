@@ -115,7 +115,7 @@ struct thread
 
 
 struct list holding_lock;         /* List of holding locks */
-char *parent_name;
+char parent_name[16];
 
     /* file related information */
     int min_fd;               /* Minimum fd for this thread */
