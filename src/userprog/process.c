@@ -171,7 +171,7 @@ process_exit (void)
     sema_up (&cur->chinfo_by_parent->exit_sema);
   }
 
-
+printf("WHO IS YOUR DADDY?  %s \n",thread_current()->parent_name);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -190,7 +190,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-free(cur->chinfo_by_parent);
+//free(cur->chinfo_by_parent);
 
 }
 

@@ -208,7 +208,7 @@ thread_create (const char *name, int priority,
 
   t->chinfo_by_parent = chinfo;
   t->parent_pid = (pid_t)thread_tid ();
-
+  t->parent_name = thread_name();
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -484,6 +484,7 @@ list_init (&t->holding_lock);
   list_init (&t->child_list);
   list_init (&t->open_file);
   t->parent_pid = NO_PARENT;
+  t->parent_name="NO";
   t->chinfo_by_parent = NULL;
   t->min_fd = INITIAL_FD; /* Initial fd is 2 */
   t->executable = NULL;
