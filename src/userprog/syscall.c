@@ -158,8 +158,8 @@ pid_t
 exec (const char *cmd_line)
 {
 
-if(child_number>31)
-return PID_ERROR;
+//if(child_number>31)
+//return PID_ERROR;
  
   pid_t child_pid;
   struct child_info *chinfo;
