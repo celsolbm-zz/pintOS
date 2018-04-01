@@ -4,7 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-
+#include <stdlib.h>
 #include "userprog/process.h"
 
 /* States in a thread's life cycle. */
@@ -111,6 +111,11 @@ struct thread
      * process.
      */
     struct child_info *chinfo_by_parent;  
+
+
+
+struct list holding_lock;         /* List of holding locks */
+
 
     /* file related information */
     int min_fd;               /* Minimum fd for this thread */

@@ -4,6 +4,8 @@
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
@@ -298,9 +300,14 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+
+//free(thread_current()->chinfo_by_parent);
+
   intr_disable ();
+
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
+//free(thread_current()->chinfo_by_parent);
   schedule ();
   NOT_REACHED ();
 }
@@ -472,7 +479,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
+list_init (&t->holding_lock);
   /* Initialize process related information */
   list_init (&t->child_list);
   list_init (&t->open_file);

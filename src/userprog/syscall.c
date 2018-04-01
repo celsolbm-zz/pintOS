@@ -39,6 +39,7 @@ syscall_handler (struct intr_frame *f)
   int sysarg[MAX_ARG];
 
   check_user_ptr ((const void *)f->esp);
+  //printf("SYSNO IS :%d \n",sysno);
   sysno = *(int *)f->esp;
   switch (sysno) {
     case SYS_HALT:
@@ -129,9 +130,17 @@ void
 exit (int status)
 {
   struct thread *cur = thread_current ();
-
   if (check_process_alive (cur->parent_pid) && cur->chinfo_by_parent)
     cur->chinfo_by_parent->exit_code = status;
+
+
+
+   /* Remove this lock from thread's holding_lock list */
+if (!list_empty (&thread_current ()->holding_lock))
+printf("oh shite there was something here \n "); 
+
+
+//free(cur->chinfo_by_parent);
 
   printf ("%s: exit(%d)\n", cur->name, status);
   thread_exit ();
@@ -146,8 +155,10 @@ exec (const char *cmd_line)
   child_pid = (pid_t)process_execute (cmd_line);
   chinfo = get_child_info (child_pid);
   if (chinfo == NULL)
-    return PID_ERROR;
+{  
+  return PID_ERROR;
 
+}
   if (chinfo->load_status == LOAD_NOT_BEGIN)
     sema_down (&chinfo->exec_sema);
 
@@ -200,12 +211,15 @@ open (const char *file)
   temp_file = filesys_open (file);
   if (temp_file == NULL) {
     lock_release (&filesys_lock);
+printf("issue here first -1 open \n");
     return -1;
   }
 
   finfo = malloc (sizeof(struct file_info));
   if (finfo == NULL) {
     lock_release (&filesys_lock);
+printf("issue here second -1 open \n");
+
     return -1;
   }
   finfo->fd = cur->min_fd;
@@ -228,6 +242,7 @@ filesize (int fd)
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
+printf("issue here filesize -1");
     return -1;
   }
   ret = (int)file_length (finfo->file);
@@ -258,6 +273,7 @@ read (int fd, void *buffer, unsigned size)
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
+printf("issue on read-1 ");
     return -1;
   }
 
@@ -282,6 +298,7 @@ write (int fd, const void *buffer, unsigned size)
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
+    printf("issue -1 no write \n");
     return -1;
   }
 
@@ -352,8 +369,14 @@ close (int fd)
 void
 check_user_ptr (const void *uptr)
 {
-  if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
-    exit (-1);
+   /* Remove this lock from thread's holding_lock list */
+if (!list_empty (&thread_current ()->holding_lock))
+printf("oh shite there was something here \n ");
+  
+if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
+{printf("user pointer errado \n");
+//free(thread_current ()->chinfo_by_parent);    
+exit (-1);}
 }
 
 /* Check whether user-provided buffer UPTR is in the valid address space */
@@ -393,6 +416,7 @@ get_kernel_vaddr (const void *uaddr)
   check_user_ptr (uaddr);
   kaddr = pagedir_get_page (cur->pagedir, uaddr);
   if (kaddr == NULL) {
+printf("kernel vaddr erro");
     /* There is no valid physical address for uaddr */
     exit (-1);
   }
