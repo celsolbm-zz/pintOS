@@ -124,14 +124,12 @@ process_wait (pid_t child_pid)
 #endif
   chinfo = get_child_info (child_pid);
   if (chinfo == NULL)
-{
     return -1;
-}
+
   /* If parent is already waiting for the child, return -1 */
   if (chinfo->wait_status == WAITED)
-{
     return -1;
-}
+
   /* Waiting for child to exit */
   chinfo->wait_status = WAITED;
   if (chinfo->exit_status == NOT_EXITED)
@@ -160,7 +158,7 @@ process_exit (void)
 
   /* Destroy child list */
   destroy_child_list ();
-//free(cur->chinfo_by_parent);
+
   if (check_process_alive (cur->parent_pid) && cur->chinfo_by_parent &&
       cur->executable) {
     cur->chinfo_by_parent->exit_status = EXITED;
@@ -170,10 +168,6 @@ process_exit (void)
 #endif
     sema_up (&cur->chinfo_by_parent->exit_sema);
   }
-
-
-
-
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -191,11 +185,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-
-
-
-
-
 }
 
 /* Sets up the CPU for running user code in the current
@@ -680,9 +669,8 @@ destroy_child_list (void)
 
   while (!list_empty (&cur->child_list)) {
     e = list_pop_front (&cur->child_list);
-    //struct child_info *chinfo = list_entry (e, struct child_info, child_elem);
-    //free (chinfo);
-     free(list_entry (e, struct child_info, child_elem));
+    struct child_info *chinfo = list_entry (e, struct child_info, child_elem);
+    free (chinfo);
   }
 }
 

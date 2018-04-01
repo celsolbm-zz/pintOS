@@ -3,7 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include <string.h>
+
 #include "devices/shutdown.h"
 #include "devices/input.h"
 #include "threads/vaddr.h"
@@ -16,7 +16,6 @@
 #define MAX_ARG 3 /* Maximum number of system call arguments */
 
 static void syscall_handler (struct intr_frame *);
-
 static int child_number=0;
 /*
  * Helper functions
@@ -40,7 +39,6 @@ syscall_handler (struct intr_frame *f)
   int sysarg[MAX_ARG];
 
   check_user_ptr ((const void *)f->esp);
-  //printf("SYSNO IS :%d \n",sysno);
   sysno = *(int *)f->esp;
   switch (sysno) {
     case SYS_HALT:
@@ -131,46 +129,29 @@ void
 exit (int status)
 {
   struct thread *cur = thread_current ();
+
   if (check_process_alive (cur->parent_pid) && cur->chinfo_by_parent)
     cur->chinfo_by_parent->exit_code = status;
-
-
-
-
-
-//free(cur->chinfo_by_parent);
 child_number--;
   printf ("%s: exit(%d)\n", cur->name, status);
   thread_exit ();
-
-//if (!strcmp(thread_current()->parent_name,"hue"))
-//{
-//free(thread_current()->chinfo_by_parent);
-
-//printf("\n \n my dad is the original multi oom and chinfo exists %d  \n \n ",cur->chinfo_by_parent->exit_code);
-
-//}
-
-
 }
 
 pid_t
 exec (const char *cmd_line)
 {
+if(child_number>31)
+return PID_ERROR;
 
-//if(child_number>31)
-//return PID_ERROR;
- 
+
   pid_t child_pid;
   struct child_info *chinfo;
 
   child_pid = (pid_t)process_execute (cmd_line);
   chinfo = get_child_info (child_pid);
   if (chinfo == NULL)
-{  
-  return PID_ERROR;
+    return PID_ERROR;
 
-}
   if (chinfo->load_status == LOAD_NOT_BEGIN)
     sema_down (&chinfo->exec_sema);
 
@@ -178,8 +159,6 @@ exec (const char *cmd_line)
     remove_child_info (chinfo);
     return PID_ERROR;
   }
-
-
 child_number++;    
   return child_pid;
 }
@@ -377,11 +356,8 @@ close (int fd)
 void
 check_user_ptr (const void *uptr)
 {
-  
-if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
-{
-//free(thread_current ()->chinfo_by_parent);    
-exit (-1);}
+  if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
+    exit (-1);
 }
 
 /* Check whether user-provided buffer UPTR is in the valid address space */
@@ -421,7 +397,6 @@ get_kernel_vaddr (const void *uaddr)
   check_user_ptr (uaddr);
   kaddr = pagedir_get_page (cur->pagedir, uaddr);
   if (kaddr == NULL) {
-printf("kernel vaddr erro");
     /* There is no valid physical address for uaddr */
     exit (-1);
   }
