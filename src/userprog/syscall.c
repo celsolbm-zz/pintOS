@@ -16,7 +16,7 @@
 #define MAX_ARG 3 /* Maximum number of system call arguments */
 
 static void syscall_handler (struct intr_frame *);
-static int child_number=0;
+static int child_number = 0;
 /*
  * Helper functions
  */
@@ -132,7 +132,8 @@ exit (int status)
 
   if (check_process_alive (cur->parent_pid) && cur->chinfo_by_parent)
     cur->chinfo_by_parent->exit_code = status;
-child_number--;
+
+  child_number--;
   printf ("%s: exit(%d)\n", cur->name, status);
   thread_exit ();
 }
@@ -140,12 +141,11 @@ child_number--;
 pid_t
 exec (const char *cmd_line)
 {
-if(child_number>31)
-return PID_ERROR;
-
-
   pid_t child_pid;
   struct child_info *chinfo;
+
+  if(child_number > 31)
+    return PID_ERROR;
 
   child_pid = (pid_t)process_execute (cmd_line);
   chinfo = get_child_info (child_pid);
@@ -159,7 +159,9 @@ return PID_ERROR;
     remove_child_info (chinfo);
     return PID_ERROR;
   }
-child_number++;    
+
+  child_number++;    
+
   return child_pid;
 }
 
