@@ -1,0 +1,302 @@
+		     +--------------------------+
+       	       	     |		EE 415		|
+		     | PROJECT 2: USER PROGRAMS	|
+		     | 	   DESIGN DOCUMENT     	|
+		     +--------------------------+
+
+---- GROUP ----
+
+>> Fill in the names and email addresses of your group members.
+
+Celso Moraes <asura254@kaist.ac.kr>
+Changhwan Kim <kimbob@kaist.ac.kr>
+
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for the
+>> TAs, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation, course
+>> text, lecture notes, and course staff.
+
+			   ARGUMENT PASSING
+			   ================
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe how you implemented argument parsing.  How do
+>> you arrange for the elements of argv[] to be in the right order?
+>> How do you avoid overflowing the stack page?
+
+The argument parsin function was implemented as an increment to the function
+set up stack. The function was modified in the following way: 2 extra arguments were
+added to represent the strings of the argument calling (combination of name of process
+plus the arguments) and a pointer that was to be used on the strtok_r(). Once the 
+set_up stack is called it initially operates as same as the original one until the 
+page allocation. Afterwards the new implementation begins. Initially the arguments are
+defined as local variables, with argc and argv being defined in both size and address.
+After the definition of the variables, a loop executing the strtok_r will run to separate the arguments
+from the process name. During this loop, the size demanded by the token is being saved
+as a vector pointer and argc is supposed to track the number of arguments in the call. The
+size of argv (initially allocked before the loop) is updated with realloc to fit the arguments.
+Afterwards they are written into the memory using memcpy with the order leraned in class. This 
+oreder is established by the esp and argc variables. Everytime an argument is put
+into the stack, the size of that argument will be decremented from the esp. Initially
+the arguments were already put in order according to the esp on the strtok loop, so
+to put them in the stack all that we have to do is remove then in the order that
+they are already presented.
+ 
+---- RATIONALE ----
+
+>> A3: Why does Pintos implement strtok_r() but not strtok()?
+
+The strtok_r() is implemented instead of strtok() to be able to be called by more than one thread. The _r on the 
+name means reentrant.
+
+>> A4: In Pintos, the kernel separates commands into a executable name
+>> and arguments.  In Unix-like systems, the shell does this
+>> separation.  Identify at least two advantages of the Unix approach.
+
+The shell on unix system is a user process, and in kernel is a kernel process. The kernel has restrictions 
+regarding its memory allocation, while in the user process you are much more free, therefore providing an 
+advantage to the shell.Also, since the shell is a user process it can perform the operation by itself. For the 
+pintos since the kernel is the responsible for the separation of the names a context switch or change of control 
+has to happen (from user mode to kernel mode), therefore this not only slows down the system but also implements 
+extra hassles such as saving the process stack and other resources, and then returning to them after the change 
+back to user mode.
+
+
+			     SYSTEM CALLS
+			     ============
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+***in syscall.c***
+static int child_number  %%counts the number of child threads overall in the system, useful for cleaning memory
+
+***in syscall.h***
+
+struct lock filesys_lock %% lock for the file system
+
+***in process.h***
+
+
+#define NO_PARENT (-1)       %%to mark if a thread does not have a parent (its not child of anybody besides the main thread)
+
+typedef int pid_t;           %%use to keep track of process identification
+
+typedef enum load_status {   %%typedef too keep track of the current status of the process that is being called.
+  LOAD_NOT_BEGIN =  1 << 0,
+  LOAD_SUCCESS =    1 << 1,
+  LOAD_FAIL =       1 << 2,
+} LOAD_STATUS;
+
+/* Wait status */            %%used by the wait syscall to keep track of the status of a parent thread waiting for its child
+typedef enum wait_status {
+  NOT_WAITED =      1 << 0,
+  WAITED =          1 << 1,
+} WAIT_STATUS;
+
+/* Exit status */
+typedef enum exit_status {   %% uses to keep the status of a process that is supposed to be terminated. Used by the exit syscall
+  NOT_EXITED =      1 << 0,
+  EXITED =          1 << 1,
+} EXIT_STATUS;
+
+/* File information */
+#define INITIAL_FD 2         %% file descriptor for initialization. 1 = stdout, 0 = stdin
+
+struct file_info {
+  int fd;                    %% file descriptor value
+  struct file *file;         %% pointer to the file
+  struct list_elem file_elem;%% list element 
+};
+
+
+/* Child information */
+struct child_info {
+  pid_t pid;                     %% identifier of the process
+  LOAD_STATUS load_status;       %% status of the child; used by the parent
+  WAIT_STATUS wait_status;       %% status if the child is waiting for some other operation (another child of his or its parent)
+  EXIT_STATUS exit_status;       %% to be used when the child has exited and its resources can be cleaned and freed
+  struct semaphore exec_sema;    %% semaphore utilized when the execution syscall is called to execute the child
+  struct semaphore exit_sema;;   %% semaphore utilized when the exit syscall is called to exit the child
+  int exit_code;                 %% exit with the type of exist that happened (may be error or just normal exit)
+  struct list_elem child_elem;   %% list elem so its parent can make a list of children it has
+};
+
+
+
+***in thread.h***
+struct list child_list %% list element that is supposed to be used by the parent thread to list all of its children 
+pid_t parent_pid       %% element to be used by a thread to identify its parent
+
+child_info *chinfo_by_parent; %% process information which is managed by parent. This is needed because of synchronization between parent and child process
+
+struct list holding_lock; %% List of holding locks by a thread. Used for debugging and clearing resources in case of exit exception
+
+char parent_name[16]; %%  name of the parent
+  
+int min_fd            %%  minimum fd for this thread
+
+struct list open_file %%  list of open files
+
+struct file *executable   %% executable file for this process
+
+>> B2: Describe how file descriptors are associated with open files.
+>> Are file descriptors unique within the entire OS or just within a
+>> single process?
+
+The file descriptors are unique inside a single process. They are first initialized by the INITIAL_FD (as 
+described in the data structures part) and it is given a value of 2. A value of 0 corresponds to stdin and 1 to 
+stdout, as it was specified on the open syscall requirements. The file descriptor is taken as an int variable for 
+a file struct that was created on the process.h file.
+
+---- ALGORITHMS ----
+
+>> B3: Describe your code for reading and writing user data from the
+>> kernel.
+
+For the read procedure: 
+The read syscall receives 3 arguments: the file descriptor fd, the buffer pointer and a size value.
+If the descriptor matches the correct value,the read will be started. Initially the buffer received
+as an argument is used as the char buffer pointer, and then a loop of the size of the "size" value
+that was received as an argument will run to read the file with getc.
+After that a lock is acquired by the syscall to call file_read and determine the size of bytes read in the file.
+If there was an issue with the file descriptor (not defined) then the syscall will return with an error.
+
+For the write procedure:
+The write syscall receives the same 3 arguments as the read syscall: the file descriptor, the buffer pointer and a size value.
+If the descriptor matches the correct value, then the write will occur. The writing procedure will use the acquired buffer and put into the file the amount of data specified on the size variable. Afterward a lock is also acquired
+to perform the same procedure as it was done with the read syscall. THe ret will return -1 if there was any issues with the file descriptor or return the amount of bytes written if everything worked as it should.  
+ 
+>> B4: Suppose a system call causes a full page (4,096 bytes) of data
+>> to be copied from user space into the kernel.  What is the least
+>> and the greatest possible number of inspections of the page table
+>> (e.g. calls to pagedir_get_page()) that might result?  What about
+>> for a system call that only copies 2 bytes of data?  Is there room
+>> for improvement in these numbers, and how much?
+
+In our code the pagedir_get_page() function is used to get the kernel virtual address from the user virtual address
+in a function called get_kernel_address, so it is called in 6 ocasions: on the exec syscall, create syscall, 
+remove syscall, open syscall, read syscall and write syscall. So for a full page of data to have to be copied, 
+the least amount of the pagedir_get_page() that you would have to use would be just by calling the read and write 
+syscall, which would take 2 calls to the page_dir_get_page(). The longest case would be if you had to execute all 
+the above mentioned syscalls to copy the file, which would be 6 inspections.
+
+
+>> B5: Briefly describe your implementation of the "wait" system call
+>> and how it interacts with process termination.
+
+The wait system call itself is very simple, all that is does is call the function process_wait and return the
+exit status of the thread.
+Process_wait works in the following way:
+first it is checked if the child to be execute is valid, and if there is any issues with the process identifier
+of the child than the function returns an error. Then it checks if the current parent is already waiting for
+the child, and if it is then it exits with an error message. IF there was no errors, than it changes the status
+of the wait_status variable of the child to WAITED, and decreases a semaphore on the child_info to make sure
+it waits the child itself increase the semaphore. After the parent process has been returned, the exit status
+of the child is returned and the child_info struct is removed from the parent child list and its resources freed.
+
+
+>> B6: Any access to user program memory at a user-specified address
+>> can fail due to a bad pointer value.  Such accesses must cause the
+>> process to be terminated.  System calls are fraught with such
+>> accesses, e.g. a "write" system call requires reading the system
+>> call number from the user stack, then each of the call's three
+>> arguments, then an arbitrary amount of user memory, and any of
+>> these can fail at any point.  This poses a design and
+>> error-handling problem: how do you best avoid obscuring the primary
+>> function of code in a morass of error-handling?  Furthermore, when
+>> an error is detected, how do you ensure that all temporarily
+>> allocated resources (locks, buffers, etc.) are freed?  In a few
+>> paragraphs, describe the strategy or strategies you adopted for
+>> managing these issues.  Give an example.
+
+WHenever there is a bad pointer, we utilized the first method specified in 3.1.5 to terminate the offending process
+ and free the resources. We validate first the validity of the pointer utilizing a function called check_user_ptr()
+, where the pointer address is checked and if there is any issue regarding its value the exit syscall is called 
+with an error argument. When this happens, exit will be called and thread_exit() also will be called (inside the 
+exit function). Inside thread_exit() process_exit will be called. Process_exit() is the responsible for destroying
+and freeing all the resources that were utilized by the existing process. 
+
+---- SYNCHRONIZATION ----
+
+>> B7: The "exec" system call returns -1 if loading the new executable
+>> fails, so it cannot return before the new executable has completed
+>> loading.  How does your code ensure this?  How is the load
+>> success/failure status passed back to the thread that calls "exec"?
+A semaphor was utilized in the execute syscall. There are 2 load conditions that are checked by the exec syscall.
+The first one is if the load has not begun yet, so the child must wait. Therefore the semaphore is decremented
+and the child will go to sleep until it can execute. If the load fails, then the child is remove and all of its
+resources freed, return the PID_ERROR, which is the value of -1.
+
+>> B8: Consider parent process P with child process C.  How do you
+>> ensure proper synchronization and avoid race conditions when P
+>> calls wait(C) before C exits?  After C exits?  How do you ensure
+>> that all resources are freed in each case?  How about when P
+>> terminates without waiting, before C exits?  After C exits?  Are
+>> there any special cases?
+
+There is a struct called child_info that is responsible for storing information regarding the children of a 
+parent process. If the child does not exists before the wait is called, on the process_wait function there is going
+to be a check to see if the child_info struct exist (which is defined when the child is created), and if it is null
+the thread will just exit with the return code -1. If the parent is already waiting for its child C then 
+inside the child_info struct there is going to be a variable called wait_status that is going to be set to 
+WAITED. This will trigger an if loop on the process_wait to return with a -1 error. All resources are free by the 
+function remove_child_info, which is responsible to free all memory that was allocate to the child and remove it 
+from the child list of the parent process. If the parent is terminated before thread C exits the resources are 
+going to be freed on the process_exit() function, which is called by the thread_exit() function which is called by
+the exit syscall. If parent terminate after C exits then the resources will normally be freed by the process_exit()
+which will call the function remove_child_info to free all the allocated memory from the children.
+---- RATIONALE ----
+
+>> B9: Why did you choose to implement access to user memory from the
+>> kernel in the way that you did?
+In our implementation we made use of a function called get_sysarg() that is supposed to access the user memory.
+This function before it does anything it calls check_user_pointer to see if the address of the pointer is valid.
+If an invalid address if given then the system can stop execution and deallocate the resources of the ofending 
+process very quickly without wasting any computation.
+
+>> B10: What advantages or disadvantages can you see to your design
+>> for file descriptors?
+It is simple since use just one list, but may be unefficient if many files are oppen since it has to search all 
+the files in the list.
+>> B11: The default tid_t to pid_t mapping is the identity mapping.
+>> If you changed it, what advantages are there to your approach?
+same tid and pid
+			   SURVEY QUESTIONS
+			   ================
+
+Answering these questions is optional, but it will help us improve the
+course in future quarters.  Feel free to tell us anything you
+want--these questions are just to spur your thoughts.  You may also
+choose to respond anonymously in the course evaluations at the end of
+the quarter.
+
+>> In your opinion, was this assignment, or any one of the three problems
+>> in it, too easy or too hard?  Did it take too long or too little time?
+
+>> Did you find that working on a particular part of the assignment gave
+>> you greater insight into some aspect of OS design?
+
+>> Is there some particular fact or hint we should give students in
+>> future quarters to help them solve the problems?  Conversely, did you
+>> find any of our guidance to be misleading?
+
+>> Do you have any suggestions for the TAs to more effectively assist
+>> students, either for future quarters or the remaining projects?
+
+>> Any other comments?
