@@ -144,7 +144,7 @@ exec (const char *cmd_line)
   pid_t child_pid;
   struct child_info *chinfo;
 
-  if(child_number > 31)
+  if(child_number > 30)
     return PID_ERROR;
 
   child_pid = (pid_t)process_execute (cmd_line);
