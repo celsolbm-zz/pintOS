@@ -30,15 +30,17 @@ Changhwan Kim <kimbob@kaist.ac.kr>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+No new data structures were added for this part.
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-The argument parsin function was implemented as an increment to the function
+The argument parsing function was implemented as an increment to the function
 set up stack. The function was modified in the following way: 2 extra arguments were
-added to represent the strings of the argument calling (combination of name of process
+added, one to represent the strings of the argument calling (combination of name of process
 plus the arguments) and a pointer that was to be used on the strtok_r(). Once the 
 set_up stack is called it initially operates as same as the original one until the 
 page allocation. Afterwards the new implementation begins. Initially the arguments are
@@ -46,9 +48,9 @@ defined as local variables, with argc and argv being defined in both size and ad
 After the definition of the variables, a loop executing the strtok_r will run to separate the arguments
 from the process name. During this loop, the size demanded by the token is being saved
 as a vector pointer and argc is supposed to track the number of arguments in the call. The
-size of argv (initially allocked before the loop) is updated with realloc to fit the arguments.
-Afterwards they are written into the memory using memcpy with the order leraned in class. This 
-oreder is established by the esp and argc variables. Everytime an argument is put
+size of argv (initially alloced before the loop) is updated with realloc to fit the arguments.
+Afterwards they are written into the memory using memcpy with the order learned in our class. This 
+order is established by the esp and argc variables. Every time an argument is put
 into the stack, the size of that argument will be decremented from the esp. Initially
 the arguments were already put in order according to the esp on the strtok loop, so
 to put them in the stack all that we have to do is remove then in the order that
@@ -67,7 +69,7 @@ name means reentrant.
 
 The shell on unix system is a user process, and in kernel is a kernel process. The kernel has restrictions 
 regarding its memory allocation, while in the user process you are much more free, therefore providing an 
-advantage to the shell.Also, since the shell is a user process it can perform the operation by itself. For the 
+advantage to the shell. Also, since the shell is a user process it can perform the operation by itself. For the 
 pintos since the kernel is the responsible for the separation of the names a context switch or change of control 
 has to happen (from user mode to kernel mode), therefore this not only slows down the system but also implements 
 extra hassles such as saving the process stack and other resources, and then returning to them after the change 
@@ -180,7 +182,7 @@ If there was an issue with the file descriptor (not defined) then the syscall wi
 For the write procedure:
 The write syscall receives the same 3 arguments as the read syscall: the file descriptor, the buffer pointer and a size value.
 If the descriptor matches the correct value, then the write will occur. The writing procedure will use the acquired buffer and put into the file the amount of data specified on the size variable. Afterward a lock is also acquired
-to perform the same procedure as it was done with the read syscall. THe ret will return -1 if there was any issues with the file descriptor or return the amount of bytes written if everything worked as it should.  
+to perform the same procedure as it was done with the read syscall. The ret will return -1 if there was any issues with the file descriptor or return the amount of bytes written if everything worked as it should.  
  
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -190,7 +192,7 @@ to perform the same procedure as it was done with the read syscall. THe ret will
 >> for improvement in these numbers, and how much?
 
 In our code the pagedir_get_page() function is used to get the kernel virtual address from the user virtual address
-in a function called get_kernel_address, so it is called in 6 ocasions: on the exec syscall, create syscall, 
+in a function called get_kernel_address, so it is called in 6 occasions: on the exec syscall, create syscall, 
 remove syscall, open syscall, read syscall and write syscall. So for a full page of data to have to be copied, 
 the least amount of the pagedir_get_page() that you would have to use would be just by calling the read and write 
 syscall, which would take 2 calls to the page_dir_get_page(). The longest case would be if you had to execute all 
@@ -225,7 +227,7 @@ of the child is returned and the child_info struct is removed from the parent ch
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
-WHenever there is a bad pointer, we utilized the first method specified in 3.1.5 to terminate the offending process
+Whenever there is a bad pointer, we utilized the first method specified in 3.1.5 to terminate the offending process
  and free the resources. We validate first the validity of the pointer utilizing a function called check_user_ptr()
 , where the pointer address is checked and if there is any issue regarding its value the exit syscall is called 
 with an error argument. When this happens, exit will be called and thread_exit() also will be called (inside the 
@@ -238,6 +240,7 @@ and freeing all the resources that were utilized by the existing process.
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
 A semaphor was utilized in the execute syscall. There are 2 load conditions that are checked by the exec syscall.
 The first one is if the load has not begun yet, so the child must wait. Therefore the semaphore is decremented
 and the child will go to sleep until it can execute. If the load fails, then the child is remove and all of its
@@ -261,22 +264,23 @@ from the child list of the parent process. If the parent is terminated before th
 going to be freed on the process_exit() function, which is called by the thread_exit() function which is called by
 the exit syscall. If parent terminate after C exits then the resources will normally be freed by the process_exit()
 which will call the function remove_child_info to free all the allocated memory from the children.
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 In our implementation we made use of a function called get_sysarg() that is supposed to access the user memory.
 This function before it does anything it calls check_user_pointer to see if the address of the pointer is valid.
-If an invalid address if given then the system can stop execution and deallocate the resources of the ofending 
+If an invalid address if given then the system can stop execution and deallocate the resources of the offending 
 process very quickly without wasting any computation.
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
-It is simple since use just one list, but may be unefficient if many files are oppen since it has to search all 
+It is simple since use just one list, but may be inefficient if many files are open since it has to search all 
 the files in the list.
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
-same tid and pid
+Same tid and pid
 			   SURVEY QUESTIONS
 			   ================
 
