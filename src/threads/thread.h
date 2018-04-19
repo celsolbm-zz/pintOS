@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include "userprog/process.h"
 
+#include <hash.h>
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -111,17 +113,19 @@ struct thread
      * process.
      */
     struct child_info *chinfo_by_parent;  
-
-
-
-struct list holding_lock;         /* List of holding locks */
-char parent_name[16];
+		struct list holding_lock;		/* List of holding locks */
+		char parent_name[16];
 
     /* file related information */
-    int min_fd;               /* Minimum fd for this thread */
-    struct list open_file;    /* Open file list */
-    struct file *executable;  /* Executable file for this process */
+    int min_fd;									/* Minimum fd for this thread */
+    struct list open_file;			/* Open file list */
+    struct file *executable;  	/* Executable file for this process */
 #endif
+
+		/*
+		 * Project 3: Virtual Memory
+		 */
+		struct hash frame_table;	
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

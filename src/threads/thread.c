@@ -207,17 +207,9 @@ thread_create (const char *name, int priority,
   if (chinfo == NULL)
     return TID_ERROR;
 
-
-
-
   t->chinfo_by_parent = chinfo;
   t->parent_pid = (pid_t)thread_tid ();
-strlcpy (t->parent_name, thread_name(), sizeof t->parent_name);
-
-
-
-
-
+	strlcpy (t->parent_name, thread_name(), sizeof t->parent_name);
 
   /* Add to run queue. */
   thread_unblock (t);
