@@ -3,12 +3,12 @@
 
 /******************************************************************************/
 static inline unsigned
-frame_hash (const struct hash_elem *he, void *aux)
+frame_hash (const struct hash_elem *he, void *aux UNUSED)
 {
 	const struct frame_table_entry *fte = hash_entry (he,
 																									  struct frame_table_entry,
 																									  frame_elem);
-	return hash_bytes (&fte->addr, sizeof(fte->addr));
+	return hash_bytes (&fte->paddr, sizeof(fte->paddr));
 }
 /******************************************************************************/
 static inline bool
@@ -21,7 +21,7 @@ frame_less (const struct hash_elem *ha, const struct hash_elem *hb,
 	const struct frame_table_entry *fteb = hash_entry (hb,
 																										 struct frame_table_entry,
 																										 frame_elem);
-	return (ftea->addr < fteb->addr);
+	return (ftea->paddr < fteb->paddr);
 }
 /******************************************************************************/
 /* Initialize frame table */
