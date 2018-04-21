@@ -5,7 +5,7 @@
 
 void
 test_main (void) 
-{
+{ msg("\n lol hi \n");
   exit (57);
   fail ("should have called exit(57)");
 }
