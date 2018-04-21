@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
-
+#include "vm/suptable.h"
 #include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
@@ -79,6 +79,12 @@ start_process (void *file_name_)
 		printf("FATAL! fail to initialize frame table\n");
 		thread_exit ();
 	}
+
+	success = init_sup_table();
+        if (!success) {
+                printf("FATAL! fail to initialize page table\n");
+                thread_exit ();
+        }
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
