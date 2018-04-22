@@ -538,8 +538,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 printf ( " \n oh hi mark \n ");
 bool isit = is_kernel_vaddr(kpage);
-bool math = kpage < PHYS_BASE;
-printf ("\n  0 means its larger than PHYS_BASE 1 means is smaller = %d \n ", math);
+printf ("\n  0 means its larger than PHYS_BASE 1 means is smaller = %d \n ", isit);
 
 ///////////////////////////END OF CELSO OF MODIFICATIONS
       if (kpage == NULL)

@@ -357,6 +357,9 @@ close (int fd)
 void
 check_user_ptr (const void *uptr)
 {
+bool success = is_user_vaddr(uptr);
+
+printf("\n hi im checking the pointer and 0 means no uaddr and 1 means yes : %d \n",success);
   if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
     exit (-1);
 }
