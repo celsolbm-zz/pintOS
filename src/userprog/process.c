@@ -124,7 +124,7 @@ printf(" \n hey im running \n");
 
 
 
-/////////////////// CELSO STUFF IS IN HERE
+/////////////////// end CELSO STUFF IS IN HERE
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
