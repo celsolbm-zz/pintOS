@@ -83,14 +83,6 @@ bool success2;
 		thread_exit ();
 	}
 
-<<<<<<< HEAD
-	success = init_sup_table();
-        if (!success) {
-                printf("FATAL! fail to initialize page table\n");
-                thread_exit ();
-        }
-
-=======
 ////////////////// CELSO STUFF IS IN HERE
 
 
@@ -134,7 +126,6 @@ printf(" \n hey im running \n");
 
 /////////////////// end CELSO STUFF IS IN HERE
 
->>>>>>> project3new
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
