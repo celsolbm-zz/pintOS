@@ -534,6 +534,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
+////////////////////////////CELSO MODIFICATIONS 
+
+printf ( " \n oh hi mark \n ");
+bool isit = is_kernel_vaddr(kpage);
+bool math = kpage < PHYS_BASE;
+printf ("\n  0 means its larger than PHYS_BASE 1 means is smaller = %d \n ", math);
+
+///////////////////////////END OF CELSO OF MODIFICATIONS
       if (kpage == NULL)
         return false;
 
