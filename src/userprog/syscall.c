@@ -129,7 +129,6 @@ void
 exit (int status)
 {
   struct thread *cur = thread_current ();
-
   if (check_process_alive (cur->parent_pid) && cur->chinfo_by_parent)
     cur->chinfo_by_parent->exit_code = status;
 

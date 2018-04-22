@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <hash.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -23,6 +24,8 @@
 #include "userprog/syscall.h"
 
 #include "vm/frame.h"
+#include "vm/suptable.h"
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp,
@@ -68,7 +71,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+bool success2;
   /* Extract program name */
   char *save_ptr;
   file_name = strtok_r (file_name, " ", &save_ptr);
@@ -79,6 +82,49 @@ start_process (void *file_name_)
 		printf("FATAL! fail to initialize frame table\n");
 		thread_exit ();
 	}
+
+////////////////// CELSO STUFF IS IN HERE
+
+
+        /* Initialize supplemental page table */
+        success2 = init_sup_table();
+        if (!success2) {
+                printf("FATAL! fail to initialize suplemental page table\n");
+                thread_exit ();
+        }
+
+printf("\n \n %d", success2);
+
+struct sup_page_entry *teste=malloc(sizeof *teste);
+struct sup_page_entry *teste2=malloc(sizeof *teste2);
+
+
+int bla=3;
+int bla2=4;
+
+teste->usls=0;
+teste->addr=&bla;
+
+teste2->usls=1;
+teste2->addr=&bla2;
+
+struct thread *cur= thread_current ();
+hash_insert (&cur->page_table, &teste->page_elem);
+hash_insert (&cur->page_table, &teste2->page_elem);
+struct sup_page_entry *teste3=sup_lookup(&bla,cur->page_table);
+
+printf("\n this value should be 0 and it is... %d \n ", teste3->usls);
+
+//void *blah;
+//int bla=2;
+//blah=&bla;
+
+printf(" \n hey im running \n");
+
+
+
+
+/////////////////// CELSO STUFF IS IN HERE
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
