@@ -21,6 +21,7 @@ static int child_number = 0;
  * Helper functions
  */
 void check_user_ptr (const void *uptr);
+void check_user_ptr2 (const void *uptr);
 void check_user_buffer (const void *uptr, unsigned size);
 void get_sysarg (struct intr_frame *f, int *sysarg, int arg_num);
 int get_kernel_vaddr (const void *uaddr);
@@ -357,12 +358,25 @@ close (int fd)
 void
 check_user_ptr (const void *uptr)
 {
-bool success = is_user_vaddr(uptr);
-
-printf("\n hi im checking the pointer and 0 means no uaddr and 1 means yes : %d \n",success);
   if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
     exit (-1);
 }
+
+
+void
+check_user_ptr2 (const void *uptr)
+{
+  if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
+    printf("\n testing pointer after the fetching of data, NOT A UADDR!!");
+else
+{ printf("\n oh shit it is a uaddr");
+//if (*uptr==NULL)
+//printf("\n well at least is null\n");
+
+}
+}
+
+
 
 /* Check whether user-provided buffer UPTR is in the valid address space */
 void
@@ -383,12 +397,14 @@ get_sysarg (struct intr_frame *f, int *sysarg, int arg_num)
 {
   int i;
   int *ptr;
-
+printf("\n arg_num is:%d \n ",arg_num );
   for (i = 0; i < arg_num; i++) {
     ptr = (int *)f->esp + i + 1; /* +1 for syscall number */
     check_user_ptr ((const void *)ptr);
     sysarg[i] = *ptr;
-  }
+ }
+
+
 }
 
 /* Get kernel virtual address from user virtual address */

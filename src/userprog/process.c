@@ -93,7 +93,7 @@ bool success2;
                 thread_exit ();
         }
 
-printf("\n \n %d", success2);
+//printf("\n \n %d", success2);
 
 struct sup_page_entry *teste=malloc(sizeof *teste);
 struct sup_page_entry *teste2=malloc(sizeof *teste2);
@@ -113,13 +113,11 @@ hash_insert (&cur->page_table, &teste->page_elem);
 hash_insert (&cur->page_table, &teste2->page_elem);
 struct sup_page_entry *teste3=sup_lookup(&bla,cur->page_table);
 
-printf("\n this value should be 0 and it is... %d \n ", teste3->usls);
 
 //void *blah;
 //int bla=2;
 //blah=&bla;
 
-printf(" \n hey im running \n");
 
 
 
@@ -405,7 +403,9 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
               bool writable = (phdr.p_flags & PF_W) != 0;
               uint32_t file_page = phdr.p_offset & ~PGMASK;
               uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
-              uint32_t page_offset = phdr.p_vaddr & PGMASK;
+              bool plop = is_user_vaddr((void *)mem_page);
+	      printf("\n am i coming here? %d\n ",sizeof mem_page);
+	      uint32_t page_offset = phdr.p_vaddr & PGMASK;
               uint32_t read_bytes, zero_bytes;
               if (phdr.p_filesz > 0)
                 {
@@ -536,9 +536,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       uint8_t *kpage = palloc_get_page (PAL_USER);
 ////////////////////////////CELSO MODIFICATIONS 
 
-printf ( " \n oh hi mark \n ");
-bool isit = is_kernel_vaddr(kpage);
-printf ("\n  0 means its larger than PHYS_BASE 1 means is smaller = %d \n ", isit);
 
 ///////////////////////////END OF CELSO OF MODIFICATIONS
       if (kpage == NULL)
