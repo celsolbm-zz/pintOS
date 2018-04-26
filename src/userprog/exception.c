@@ -4,10 +4,10 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-
+#include <hash.h>
 #include <user/syscall.h>
 #include "threads/vaddr.h"
-
+#include "vm/suptable.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -137,9 +137,25 @@ page_fault (struct intr_frame *f)
      See [IA32-v2a] "MOV--Move to/from Control Registers" and
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
+
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
-  /* Turn interrupts back on (they were only off so that we could
+//////////// CELSO MODS STARTS HERE	
+void *new_addr= (void *)((uintptr_t)fault_addr & ~(uintptr_t) 0xfff);
+bool tst_fault = is_user_vaddr((void *)fault_addr);	
+printf(" \n hey guys,fault address is user if i is 1. i = %d \n", tst_fault);
+printf("\n \n the fault address was: %p \n \n", (void *)fault_addr);  
+printf("\n \n the SHIFTED fault address was: %p \n \n", (void *)new_addr); 
+
+struct sup_page_entry *tst=sup_lookup((void *)new_addr,thread_current()->page_table);
+if (tst==NULL)
+	printf("\n RETURNED NULL \n");
+else
+	printf(" \n OH SHIT ITS THERE \n");
+//printf(" \n hey guys the page fault came from %d \n ",sup_lookup(fault_addr,thread_current()->page_table)->type);
+
+//////////// CELSO MODS END HERE
+/* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
   intr_enable ();
 

@@ -92,9 +92,9 @@ bool success2;
                 printf("FATAL! fail to initialize suplemental page table\n");
                 thread_exit ();
         }
-
+lock_init(&sup_lock);
 //printf("\n \n %d", success2);
-
+/*
 struct sup_page_entry *teste=malloc(sizeof *teste);
 struct sup_page_entry *teste2=malloc(sizeof *teste2);
 
@@ -112,14 +112,15 @@ struct thread *cur= thread_current ();
 hash_insert (&cur->page_table, &teste->page_elem);
 hash_insert (&cur->page_table, &teste2->page_elem);
 struct sup_page_entry *teste3=sup_lookup(&bla,cur->page_table);
-
+printf("is useless==nul? %d",teste3==NULL);
+printf("the page with usls = %d", teste3->usls);
 
 //void *blah;
 //int bla=2;
 //blah=&bla;
 
 
-
+*/
 
 
 /////////////////// end CELSO STUFF IS IN HERE
@@ -404,8 +405,8 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
               uint32_t file_page = phdr.p_offset & ~PGMASK;
               uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
               bool plop = is_user_vaddr((void *)mem_page);
-	      printf("\n am i coming here? %d\n ",sizeof mem_page);
-	      uint32_t page_offset = phdr.p_vaddr & PGMASK;
+							printf("\n am i coming here? %d\n ",plop);
+							uint32_t page_offset = phdr.p_vaddr & PGMASK;
               uint32_t read_bytes, zero_bytes;
               if (phdr.p_filesz > 0)
                 {
@@ -414,17 +415,26 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                   read_bytes = page_offset + phdr.p_filesz;
                   zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
                                 - read_bytes);
-                }
+									lock_acquire(&sup_lock);
+									struct sup_page_entry *new_entry=malloc(sizeof *new_entry);
+									save_sup_page(new_entry,(void *)mem_page, read_bytes,zero_bytes,FILE_DATA);
+									printf("\n the size of the hash table from the load segment is ; %d \n",hash_size(&thread_current()->page_table));
+								
+									printf("the address that was just put in is: %p", (void *)mem_page);
+									lock_release(&sup_lock);
+							 	}
               else 
                 {
                   /* Entirely zero.
                      Don't read anything from disk. */
-                  read_bytes = 0;
+                  printf(" \n is it coming here? ZERO PAGES \n");
+									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
-              if (!load_segment (file, file_page, (void *) mem_page,
-                                 read_bytes, zero_bytes, writable))
-                goto done;
+             // if (!load_segment (file, file_page, (void *) mem_page,///cancel this part to create page fault
+             //                    read_bytes, zero_bytes, writable)) /// 
+																																		///
+            //    goto done;																					///
             }
           else
             goto done;

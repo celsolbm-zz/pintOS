@@ -49,7 +49,16 @@ return e != NULL ? hash_entry (e, struct sup_page_entry, page_elem):NULL;
 }
 
 
+void save_sup_page(struct sup_page_entry *sup_page,void *address, uint32_t r_bytes, uint32_t z_bytes, int tp)
+{
+sup_page->read_bytes=r_bytes;
+sup_page->zero_bytes=z_bytes;
+sup_page->type=tp;
+sup_page->addr=address;
+struct thread *cur = thread_current();
+hash_insert(&cur->page_table,&sup_page->page_elem);
 
+}
 
 
 
