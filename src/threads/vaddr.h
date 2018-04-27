@@ -7,6 +7,8 @@
 
 #include "threads/loader.h"
 
+#define BOTTOM_USER_SPACE ((void *)0x08048000)
+
 /* Functions and macros for working with virtual addresses.
 
    See pte.h for functions and macros specifically for x86

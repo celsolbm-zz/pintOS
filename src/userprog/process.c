@@ -70,7 +70,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-bool success2;
+	bool success2;
   /* Extract program name */
   char *save_ptr;
   file_name = strtok_r (file_name, " ", &save_ptr);
@@ -84,44 +84,40 @@ bool success2;
 
 ////////////////// CELSO STUFF IS IN HERE
 
+	/* Initialize supplemental page table */
+	success2 = init_sup_table();
+	if (!success2) {
+	        printf("FATAL! fail to initialize suplemental page table\n");
+	        thread_exit ();
+	}
 
-        /* Initialize supplemental page table */
-        success2 = init_sup_table();
-        if (!success2) {
-                printf("FATAL! fail to initialize suplemental page table\n");
-                thread_exit ();
-        }
-lock_init(&sup_lock);
-//printf("\n \n %d", success2);
-/*
-struct sup_page_entry *teste=malloc(sizeof *teste);
-struct sup_page_entry *teste2=malloc(sizeof *teste2);
-
-
-int bla=3;
-int bla2=4;
-
-teste->usls=0;
-teste->addr=&bla;
-
-teste2->usls=1;
-teste2->addr=&bla2;
-
-struct thread *cur= thread_current ();
-hash_insert (&cur->page_table, &teste->page_elem);
-hash_insert (&cur->page_table, &teste2->page_elem);
-struct sup_page_entry *teste3=sup_lookup(&bla,cur->page_table);
-printf("is useless==nul? %d",teste3==NULL);
-printf("the page with usls = %d", teste3->usls);
-
-//void *blah;
-//int bla=2;
-//blah=&bla;
-
-
-*/
-
-
+	lock_init(&sup_lock);
+#if 0
+	//printf("\n \n %d", success2);
+	struct sup_page_entry *teste=malloc(sizeof *teste);
+	struct sup_page_entry *teste2=malloc(sizeof *teste2);
+	
+	
+	int bla=3;
+	int bla2=4;
+	
+	teste->usls=0;
+	teste->addr=&bla;
+	
+	teste2->usls=1;
+	teste2->addr=&bla2;
+	
+	struct thread *cur= thread_current ();
+	hash_insert (&cur->page_table, &teste->page_elem);
+	hash_insert (&cur->page_table, &teste2->page_elem);
+	struct sup_page_entry *teste3=sup_lookup(&bla,cur->page_table);
+	printf("is useless==nul? %d",teste3==NULL);
+	printf("the page with usls = %d", teste3->usls);
+	
+	//void *blah;
+	//int bla=2;
+	//blah=&bla;
+#endif
 /////////////////// end CELSO STUFF IS IN HERE
 
   /* Initialize interrupt frame and load executable. */
@@ -412,14 +408,18 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                   read_bytes = page_offset + phdr.p_filesz;
                   zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
                                 - read_bytes);
-									lock_acquire(&sup_lock);
-									struct sup_page_entry *new_entry=malloc(sizeof *new_entry);
-									save_sup_page(new_entry,(void *)mem_page, read_bytes,zero_bytes,file_page, writable, FILE_DATA, file, esp, eip, save_ptr,(void (*) (void)) ehdr.e_entry);
-								
+									
+									/* Add to supplemental page table */
+									lock_acquire (&sup_lock);
+									struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
+									save_sup_page (new_entry, (void *)mem_page, read_bytes,
+																 zero_bytes,file_page, writable, FILE_DATA,
+																 file, esp, eip, save_ptr,
+																 (void (*) (void))ehdr.e_entry);
 									printf("the address that was just put in is: %p", (void *)mem_page);
 									printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
 									printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
-									lock_release(&sup_lock);
+									lock_release (&sup_lock);
 							 	}
               else 
                 {
@@ -429,10 +429,12 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
-            //  if (!load_segment (file, file_page, (void *) mem_page,///cancel this part to create page fault
-            //                     read_bytes, zero_bytes, writable)) /// 
-							  																											///
-            //    goto done;																					///
+#if 0
+							/* Cancel this part to create page fault */
+							if (!load_segment (file, file_page, (void *) mem_page,
+                                 read_bytes, zero_bytes, writable)) 
+								goto done;																			
+#endif
             }
           else
             goto done;
@@ -458,15 +460,6 @@ printf("start address of eip is %p \n",*eip);
   lock_release (&filesys_lock);
   return success;
 }
-
-
-
-
-
-
-
-
-
 
 /* load() helpers. */
 
@@ -583,7 +576,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 bool
 ext_load_segment (struct file *file, off_t ofs, uint8_t *upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+									uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);

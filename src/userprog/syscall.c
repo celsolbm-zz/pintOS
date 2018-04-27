@@ -12,7 +12,6 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 
-#define BOTTOM_USER_SPACE ((void *)0x08048000)
 #define MAX_ARG 3 /* Maximum number of system call arguments */
 
 static void syscall_handler (struct intr_frame *);
