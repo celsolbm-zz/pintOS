@@ -3,6 +3,7 @@
 
 #include <list.h>
 #include "threads/synch.h"
+#include "filesys/file.h"
 
 #define NO_PARENT (-1)
 typedef int pid_t;
@@ -43,6 +44,7 @@ struct file_info {
 struct file_info *get_file_info (int fd);
 void destroy_file_list (void);
 
+
 /* Child information */
 struct child_info {
   pid_t pid;
@@ -59,5 +61,7 @@ struct child_info *create_child_info (pid_t pid);
 struct child_info *get_child_info (pid_t pid);
 void remove_child_info (struct child_info *chinfo);
 void destroy_child_list (void);
+bool ext_load_segment(struct file *, off_t , uint8_t *,
 
+              uint32_t , uint32_t , bool ); 
 #endif /* userprog/process.h */

@@ -1,6 +1,7 @@
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
+#include "userprog/process.h"
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -142,23 +143,52 @@ page_fault (struct intr_frame *f)
 
 //////////// CELSO MODS STARTS HERE	
 void *new_addr= (void *)((uintptr_t)fault_addr & ~(uintptr_t) 0xfff);
-bool tst_fault = is_user_vaddr((void *)fault_addr);	
-printf(" \n hey guys,fault address is user if i is 1. i = %d \n", tst_fault);
+
+void *new_addr2 = new_addr-PGSIZE ;
 printf("\n \n the fault address was: %p \n \n", (void *)fault_addr);  
 printf("\n \n the SHIFTED fault address was: %p \n \n", (void *)new_addr); 
+printf("\n \n the SUBTRACTED fault address is: %p \n \n", (void *)new_addr2); 
 
-struct sup_page_entry *tst=sup_lookup((void *)new_addr,thread_current()->page_table);
+#define BOTTOM_USER ((void *)0x08048000)
+bool addr_tst=(!is_user_vaddr(new_addr2) || (new_addr2<BOTTOM_USER ) );
+	printf(" \n NOT VALID ADDRESS?? %d  \n",addr_tst);
+intr_enable ();
+struct sup_page_entry *tst;
+while (1)
+{
+tst=sup_lookup((void *)new_addr,thread_current()->page_table);
+if (tst==NULL)
+{new_addr=new_addr-PGSIZE;
+	if (!is_user_vaddr(new_addr2) || (new_addr2<BOTTOM_USER ) )
+		break;
+continue;
+}
+break;
+}
+
+
+
 if (tst==NULL)
 	printf("\n RETURNED NULL \n");
 else
-	printf(" \n OH SHIT ITS THERE \n");
-//printf(" \n hey guys the page fault came from %d \n ",sup_lookup(fault_addr,thread_current()->page_table)->type);
+{	printf(" \n ALLOCING PAGE ADDRESS %p \n", tst->addr);
+  tst->alloced=true;	
+	ext_load_segment(tst->arq,tst->file_page,(void *)tst->addr,tst->read_bytes,tst->zero_bytes,tst->writable);
+return;
+}
 
-//////////// CELSO MODS END HERE
+
+//I SHIFTED THE INTR TO BEFORE
+
+
 /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
-  intr_enable ();
 
+
+
+
+
+///////// CELSO MODS END HERE
   /* Count page faults. */
   page_fault_cnt++;
 

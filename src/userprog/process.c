@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
-#include "vm/suptable.h"
 #include "vm/frame.h"
 #include "vm/suptable.h"
 
@@ -404,8 +403,6 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
               bool writable = (phdr.p_flags & PF_W) != 0;
               uint32_t file_page = phdr.p_offset & ~PGMASK;
               uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
-              bool plop = is_user_vaddr((void *)mem_page);
-							printf("\n am i coming here? %d\n ",plop);
 							uint32_t page_offset = phdr.p_vaddr & PGMASK;
               uint32_t read_bytes, zero_bytes;
               if (phdr.p_filesz > 0)
@@ -417,10 +414,11 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                                 - read_bytes);
 									lock_acquire(&sup_lock);
 									struct sup_page_entry *new_entry=malloc(sizeof *new_entry);
-									save_sup_page(new_entry,(void *)mem_page, read_bytes,zero_bytes,FILE_DATA);
-									printf("\n the size of the hash table from the load segment is ; %d \n",hash_size(&thread_current()->page_table));
+									save_sup_page(new_entry,(void *)mem_page, read_bytes,zero_bytes,file_page, writable, FILE_DATA, file, esp, eip, save_ptr,(void (*) (void)) ehdr.e_entry);
 								
 									printf("the address that was just put in is: %p", (void *)mem_page);
+									printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
+									printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
 									lock_release(&sup_lock);
 							 	}
               else 
@@ -431,9 +429,9 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
-             // if (!load_segment (file, file_page, (void *) mem_page,///cancel this part to create page fault
-             //                    read_bytes, zero_bytes, writable)) /// 
-																																		///
+            //  if (!load_segment (file, file_page, (void *) mem_page,///cancel this part to create page fault
+            //                     read_bytes, zero_bytes, writable)) /// 
+							  																											///
             //    goto done;																					///
             }
           else
@@ -441,7 +439,6 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
           break;
         }
     }
-
   /* Set up stack. */
   if (!setup_stack (esp, file_name, save_ptr))
     goto done;
@@ -453,7 +450,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-
+printf("start address of eip is %p \n",*eip);
   success = true;
 
  done:
@@ -461,6 +458,15 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
   lock_release (&filesys_lock);
   return success;
 }
+
+
+
+
+
+
+
+
+
 
 /* load() helpers. */
 
@@ -544,10 +550,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
-////////////////////////////CELSO MODIFICATIONS 
 
 
-///////////////////////////END OF CELSO OF MODIFICATIONS
       if (kpage == NULL)
         return false;
 
@@ -573,6 +577,61 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     }
   return true;
 }
+
+
+//////////////EXTERNAL LOAD SEGMENT
+
+bool
+ext_load_segment (struct file *file, off_t ofs, uint8_t *upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
+{
+  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
+  ASSERT (pg_ofs (upage) == 0);
+  ASSERT (ofs % PGSIZE == 0);
+
+  file_seek (file, ofs);
+  while (read_bytes > 0 || zero_bytes > 0) 
+    {
+      /* Calculate how to fill this page.
+         We will read PAGE_READ_BYTES bytes from FILE
+         and zero the final PAGE_ZERO_BYTES bytes. */
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+      /* Get a page of memory. */
+      uint8_t *kpage = palloc_get_page (PAL_USER);
+
+      if (kpage == NULL)
+        return false;
+
+      /* Load this page. */
+      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+        {
+          palloc_free_page (kpage);
+          return false; 
+        }
+      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+      /* Add the page to the process's address space. */
+      if (!install_page (upage, kpage, writable)) 
+        {
+          palloc_free_page (kpage);
+          return false; 
+        }
+
+      /* Advance. */
+      read_bytes -= page_read_bytes;
+      zero_bytes -= page_zero_bytes;
+      upage += PGSIZE;
+    }
+  return true;
+}
+
+
+
+////////////// END OF EXTERNAL LOAD SEGMENT
+
+
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
