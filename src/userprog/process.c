@@ -422,7 +422,13 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                 {
                   /* Entirely zero.
                      Don't read anything from disk. */
-                  printf(" \n is it coming here? ZERO PAGES \n");
+
+									struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
+									save_sup_page (new_entry, (void *)mem_page, read_bytes,
+																 zero_bytes,file_page, writable, ZERO_PAGE,
+																 file, esp, eip, save_ptr,
+																 (void (*) (void))ehdr.e_entry);
+									printf(" \n is it coming here? ZERO PAGES \n");
 									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }

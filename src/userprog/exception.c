@@ -178,6 +178,9 @@ page_fault (struct intr_frame *f)
 											tst->read_bytes, tst->zero_bytes, tst->writable);
 		return;
 	}
+
+
+
 	//I SHIFTED THE INTR TO BEFORE
 	//
 /* Turn interrupts back on (they were only off so that we could
