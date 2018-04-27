@@ -62,6 +62,6 @@ struct child_info *get_child_info (pid_t pid);
 void remove_child_info (struct child_info *chinfo);
 void destroy_child_list (void);
 bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
-                          uint32_t read_bytes, uint32_t zero_bytes,
-                          bool writable);
+                   uint32_t read_bytes, uint32_t zero_bytes,
+                   bool writable);
 #endif /* userprog/process.h */

@@ -76,9 +76,9 @@ start_process (void *file_name_)
   file_name = strtok_r (file_name, " ", &save_ptr);
 
 	/* Initialize frame table */
-	success = init_frame_table();
+	success = init_frame_table ();
 	if (!success) {
-		printf("FATAL! fail to initialize frame table\n");
+		printf ("FATAL! fail to initialize frame table\n");
 		thread_exit ();
 	}
 
@@ -87,11 +87,11 @@ start_process (void *file_name_)
 	/* Initialize supplemental page table */
 	success2 = init_sup_table();
 	if (!success2) {
-	        printf("FATAL! fail to initialize suplemental page table\n");
+	        printf ("FATAL! fail to initialize suplemental page table\n");
 	        thread_exit ();
 	}
 
-	lock_init(&sup_lock);
+	lock_init (&sup_lock);
 #if 0
 	//printf("\n \n %d", success2);
 	struct sup_page_entry *teste=malloc(sizeof *teste);
