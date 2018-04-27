@@ -174,7 +174,7 @@ page_fault (struct intr_frame *f)
 	} else {
 		printf(" \n ALLOCING PAGE ADDRESS %p \n", tst->addr);
 	  tst->alloced = true;	
-		ext_load_segment (tst->arq, tst->file_page, (void *)tst->addr,
+		load_segment (tst->arq, tst->file_page, (void *)tst->addr,
 											tst->read_bytes, tst->zero_bytes, tst->writable);
 		return;
 	}
