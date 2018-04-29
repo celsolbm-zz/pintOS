@@ -24,7 +24,7 @@
 #include "userprog/syscall.h"
 #include "vm/frame.h"
 #include "vm/suptable.h"
-
+#include "vm/swaptable.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp,
@@ -92,6 +92,23 @@ start_process (void *file_name_)
 	}
 
 	lock_init (&sup_lock);
+
+	/*Initialize the swap table */
+/*
+
+	lock_acquire(&swap_lock);
+bool success3;
+	if (!swap_init)
+	{
+success3=init_swap_table();
+
+swap_init= true;
+	}
+lock_release(&swap_lock);
+
+*/
+
+
 #if 0
 	//printf("\n \n %d", success2);
 	struct sup_page_entry *teste=malloc(sizeof *teste);
@@ -413,10 +430,14 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 																 zero_bytes,file_page, writable, FILE_DATA,
 																 file, esp, eip, save_ptr,
 																 (void (*) (void))ehdr.e_entry);
-									printf("the address that was just put in is: %p", (void *)mem_page);
+									//printf("the address that was just put in is: %p", (void *)mem_page);
 									printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
 									printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
 									lock_release (&sup_lock);
+
+									struct swap_entry *new_swap = malloc (sizeof *new_swap);
+									save_swap (new_swap, (void *)mem_page,read_bytes,zero_bytes,
+														 file_page,writable);
 							 	}
               else 
                 {

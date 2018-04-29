@@ -37,7 +37,7 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
-
+#include "vm/swaptable.h"///////include the SWAP TABLE
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
@@ -90,6 +90,10 @@ main (void)
   thread_init ();
   console_init ();  
 
+// lock_init(&swap_lock);
+
+
+
   /* Greet user. */
   printf ("Pintos booting with %'"PRIu32" kB RAM...\n",
           init_ram_pages * PGSIZE / 1024);
@@ -126,6 +130,8 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
+
+	init_swap_table();
 
   printf ("Boot complete.\n");
   

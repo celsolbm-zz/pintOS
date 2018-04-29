@@ -221,3 +221,5 @@ list_elem_to_block (struct list_elem *list_elem)
           : NULL);
 }
 
+unsigned long long get_sectors_written(struct block *blocke)
+{return blocke->write_cnt;}

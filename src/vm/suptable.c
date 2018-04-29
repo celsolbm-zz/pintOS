@@ -24,6 +24,8 @@
 #include "vm/frame.h"
 #include "suptable.h"
 
+
+
 /******************************************************************************/
 static inline unsigned
 page_hash (const struct hash_elem *po_, void *aux UNUSED)
@@ -93,3 +95,6 @@ save_sup_page (struct sup_page_entry *sup_page, void *address,
 	
 	hash_insert(&cur->page_table, &sup_page->page_elem);
 }
+
+
+

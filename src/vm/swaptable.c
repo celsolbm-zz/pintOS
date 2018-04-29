@@ -16,6 +16,9 @@
 #include "userprog/syscall.h"
 #include "vm/frame.h"
 #include "swaptable.h"
+#include "devices/block.h"
+
+#define sector_size 512
 
 /******************************************************************************/
 static inline unsigned
@@ -46,20 +49,20 @@ swap_less (const struct hash_elem *sa_, const struct hash_elem *sb_,
 bool
 init_swap_table (void)
 {
-	struct thread *cur = thread_current ();
-	bool result = hash_init (&cur->swap_table, swap_hash, swap_less, NULL);
+	
+	bool result = hash_init (&swap_table, swap_hash, swap_less, NULL);
 	
 	return result;
 }
 /******************************************************************************/
 struct swap_entry *
-swap_lookup (void *address, struct hash hash_list)
+swap_lookup (void *address)
 {
 	struct swap_entry pg;
 	struct hash_elem *e;
 	
 	pg.addr = address;
-	e = hash_find (&hash_list, &pg.swap_elem);
+	e = hash_find (&swap_table, &pg.swap_elem);
 
 	return (e != NULL) ? (hash_entry (e, struct swap_entry, swap_elem)) :
 											 (NULL);
@@ -71,13 +74,62 @@ save_swap (struct swap_entry *swap, void *address,
 							 uint32_t r_bytes, uint32_t z_bytes, uint32_t file_p,
 							 bool wr)
 {
-	struct thread *cur = thread_current();
 
 	swap->read_bytes = r_bytes;
 	swap->zero_bytes = z_bytes;
 	swap->addr = address;
 	swap->writable = wr;
 	swap->file_page = file_p;
-	
-	hash_insert(&cur->swap_table, &swap->swap_elem);
+	swap->swap_block=block_get_role(BLOCK_SWAP);
+	hash_insert(&swap_table, &swap->swap_elem);
 }
+/******************************************************************************/
+
+void 
+load_frame (struct swap_entry *swap)
+{
+int sectors_written;
+sectors_written=(int)get_sectors_written(swap->swap_block);
+uint32_t sector;
+if (sectors_written==0)
+sector = 0;
+else
+sector =sectors_written;
+
+void *kaddr=pagedir_get_page(thread_current()->pagedir,swap->addr);
+
+int loops=(swap->read_bytes+swap->zero_bytes)/sector_size;
+int index=0;
+if (loops==0)
+{block_write(swap->swap_block, sector,kaddr); 
+swap->swap_off=0;
+return;
+}
+swap->swap_off=sector;
+while (index<loops)
+{	block_write(swap->swap_block, sector,kaddr); 
+	sector+=1;
+	kaddr=kaddr+0x200;
+	index=index+1;
+}
+
+}
+/*
+void read_frame(struct swap_entry *swap, void *paddr)
+{
+
+int loops=(swap->read_bytes+swap->zero_bytes)/sector_size;
+int index=0;
+int sector=swap->swap_off;
+while (index<loops)
+{
+	block_read(swap->swap_block,sector,paddr);
+	paddr=paddr+0x200;
+	index=index+1;
+	sector+=1;
+}
+
+
+}
+
+*/
