@@ -24,7 +24,7 @@
 #include "userprog/syscall.h"
 #include "vm/frame.h"
 #include "vm/suptable.h"
-
+#include "vm/swaptable.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp,
@@ -91,7 +91,7 @@ start_process (void *file_name_)
 	        thread_exit ();
 	}
 
-#if 0 /* debug */
+#if 0
 	//printf("\n \n %d", success2);
 	struct sup_page_entry *teste=malloc(sizeof *teste);
 	struct sup_page_entry *teste2=malloc(sizeof *teste2);
@@ -414,15 +414,25 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 									printf("the address that was just put in is: %p", (void *)mem_page);
 									printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
 									printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
+									lock_release (&sup_lock);
 #endif
+									save_swap ((void *)mem_page,read_bytes,zero_bytes,
+														 file_page,writable);
 							 	}
               else 
                 {
                   /* Entirely zero.
                      Don't read anything from disk. */
-                  printf(" \n is it coming here? ZERO PAGES \n");
 									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
+
+									save_sup_page ((void *)mem_page, read_bytes,
+																 zero_bytes,file_page, writable, ZERO_PAGE,
+																 file, esp, eip, save_ptr,
+																 (void (*) (void))ehdr.e_entry);
+#if 0 /* debug */
+									printf(" \n is it coming here? ZERO PAGES \n");
+#endif
                 }
 #if 0
 							/* Cancel this part to create page fault */

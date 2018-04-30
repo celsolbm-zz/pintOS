@@ -127,6 +127,7 @@ struct thread
 		 */
 		struct hash frame_table;	
 		struct hash page_table;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

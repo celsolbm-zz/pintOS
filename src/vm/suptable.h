@@ -13,7 +13,7 @@ enum type_data {
 struct sup_page_entry {
 	struct hash_elem page_elem;
 	void *addr;
-	int usls;
+	int usls;//debugging
 	enum type_data type;
 	bool alloced;
 	uint32_t read_bytes;

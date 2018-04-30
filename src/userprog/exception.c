@@ -8,7 +8,10 @@
 #include <hash.h>
 #include <user/syscall.h>
 #include "threads/vaddr.h"
+
 #include "vm/suptable.h"
+#include "vm/swaptable.h"
+
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -139,21 +142,23 @@ page_fault (struct intr_frame *f)
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
 
+
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
 //////////// CELSO MODS STARTS HERE	
-	void *new_addr, *new_addr_2; 
-	bool addr_tst;
+	void *new_addr, *new_addr_2, *new_addr_3, *beta; 
 	struct sup_page_entry *tst;
 
 	new_addr = (void *)((uintptr_t)fault_addr & ~(uintptr_t)0xfff);
+	new_addr_3 = new_addr;
+	beta = new_addr + 0x200;
 	new_addr_2 = new_addr - PGSIZE;
-	addr_tst = (!is_user_vaddr (new_addr_2) || (new_addr_2 < BOTTOM_USER_SPACE));
-
-	printf("\n \n the fault address was: %p \n \n", (void *)fault_addr);  
-	printf("\n \n the SHIFTED fault address was: %p \n \n", (void *)new_addr); 
-	printf("\n \n the SUBTRACTED fault address is: %p \n \n", (void *)new_addr_2); 
-	printf(" \n NOT VALID ADDRESS?? %d  \n",addr_tst);
+#if 0 /* debug */
+	printf("\n the fault address was: %p ", (void *)fault_addr);  
+	printf("\n the SHIFTED fault address was: %p ", (void *)new_addr); 
+	printf("\n the SUBTRACTED fault address is: %p", (void *)new_addr_2); 
+	printf("\n beta is %p  \n",beta);
+#endif
 
 	intr_enable ();
 
@@ -161,23 +166,56 @@ page_fault (struct intr_frame *f)
 		tst = sup_lookup ((void *)new_addr, thread_current ()->page_table);
 		if (tst == NULL) {
 			new_addr = new_addr - PGSIZE;
-			if (!is_user_vaddr (new_addr_2) || (new_addr_2 < BOTTOM_USER_SPACE))
+			if (!is_user_vaddr (new_addr) || (new_addr < BOTTOM_USER_SPACE))
 				break;
 
 			continue;
 		}
 		break;
 	}
-	
+
+
+/******************TESTING SWAP STUFF********/
+
+	struct swap_entry *tst_swap;
+	while (1) {
+		tst_swap = swap_lookup ((void *)new_addr_3);
+		if (tst_swap == NULL) {
+#if 0 /* debug */
+			printf("\n new addr_3 is %p",new_addr_3);
+#endif
+			new_addr_3 = new_addr_3 - PGSIZE;
+			if (!is_user_vaddr (new_addr_3) || (new_addr_3 < BOTTOM_USER_SPACE))
+				break;
+
+			continue;
+		}
+		break;
+	}
+
+	if (tst_swap == NULL)
+		printf("\n NOTHING FOUND ON THE SWAP \n ");
+	else
+		printf("found swap! address is %p \n", tst_swap->addr);
+
+/*****************END OF TESTING SWAP STUFF**/
+
 	if (tst == NULL) {
 		printf("\n RETURNED NULL \n");
 	} else {
 		printf(" \n ALLOCING PAGE ADDRESS %p \n", tst->addr);
+
 	  tst->alloced = true;	
 		load_segment (tst->arq, tst->file_page, (void *)tst->addr,
 											tst->read_bytes, tst->zero_bytes, tst->writable);
+		load_frame(tst_swap);
+#if 0 /* debug */
+		printf("offset of this swap is:  %d ",tst_swap->swap_off);
+		block_print_stats ();
+#endif
 		return;
 	}
+
 	//I SHIFTED THE INTR TO BEFORE
 	//
 /* Turn interrupts back on (they were only off so that we could
