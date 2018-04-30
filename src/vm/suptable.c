@@ -1,28 +1,8 @@
-#include "userprog/process.h"
-#include <debug.h>
-#include <inttypes.h>
-#include <round.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <hash.h>
-#include "userprog/gdt.h"
-#include "userprog/pagedir.h"
-#include "userprog/tss.h"
-#include "filesys/directory.h"
-#include "filesys/file.h"
-#include "filesys/filesys.h"
-#include "threads/flags.h"
-#include "threads/init.h"
-#include "threads/interrupt.h"
-#include "threads/palloc.h"
-#include "threads/thread.h"
-#include "threads/vaddr.h"
-#include <stdio.h>
-#include "threads/malloc.h"
-#include "userprog/syscall.h"
-#include "vm/frame.h"
 #include "suptable.h"
+#include "threads/thread.h"
+#include "threads/malloc.h"
+
+struct lock sup_lock;
 
 /******************************************************************************/
 static inline unsigned
@@ -53,7 +33,10 @@ bool
 init_sup_table (void)
 {
 	struct thread *cur = thread_current ();
-	bool result = hash_init (&cur->page_table, page_hash, page_less, NULL);
+	bool result;
+
+	lock_init (&sup_lock);
+	result = hash_init (&cur->page_table, page_hash, page_less, NULL);
 	
 	return result;
 }
@@ -72,24 +55,26 @@ sup_lookup (void *address, struct hash hash_list)
 }
 /******************************************************************************/
 void
-save_sup_page (struct sup_page_entry *sup_page, void *address,
-							 uint32_t r_bytes, uint32_t z_bytes, uint32_t file_p,
-							 bool wr, int tp, struct file *file, void **esp,
+save_sup_page (void *address, uint32_t r_bytes, uint32_t z_bytes,
+							 uint32_t file_p, bool wr, int tp, struct file *file, void **esp,
 							 void (**eip) (void), char **save_ptr, void *ptr)
 {
 	struct thread *cur = thread_current();
+	struct sup_page_entry *spe = malloc (sizeof(struct sup_page_entry));
 
-	sup_page->read_bytes = r_bytes;
-	sup_page->zero_bytes = z_bytes;
-	sup_page->type = tp;
-	sup_page->addr = address;
-	sup_page->writable = wr;
-	sup_page->file_page = file_p;
-	sup_page->arq = file;
-	sup_page->esp1 = esp;
-	sup_page->eip1 = eip;
-	*sup_page->eip1 = ptr;
-	sup_page->save_ptr1 = save_ptr;
-	
-	hash_insert(&cur->page_table, &sup_page->page_elem);
+	lock_acquire (&sup_lock);
+	spe->read_bytes = r_bytes;
+	spe->zero_bytes = z_bytes;
+	spe->type = tp;
+	spe->addr = address;
+	spe->writable = wr;
+	spe->file_page = file_p;
+	spe->arq = file;
+	spe->esp1 = esp;
+	spe->eip1 = eip;
+	spe->eip1 = ptr;
+	spe->save_ptr1 = save_ptr;
+
+	hash_insert(&cur->page_table, &spe->page_elem);
+	lock_release (&sup_lock);
 }

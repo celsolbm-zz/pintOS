@@ -28,12 +28,10 @@ struct sup_page_entry {
 	char **save_ptr1;	
 };
 
-struct lock sup_lock;
-
 bool init_sup_table (void);
 struct sup_page_entry *sup_lookup (void *, struct hash);
-void save_sup_page (struct sup_page_entry *, void *, uint32_t,
-										uint32_t, uint32_t, bool, int, struct file *, void **,
-										void (**eip) (void), char **, void *ptr );
+void save_sup_page (void *, uint32_t, uint32_t, uint32_t, bool, int,
+										struct file *, void **, void (**eip) (void),
+										char **, void *);
 
 #endif /* _SUPTABLE_H */

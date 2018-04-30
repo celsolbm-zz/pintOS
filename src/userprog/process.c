@@ -70,7 +70,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-	bool success2;
+
   /* Extract program name */
   char *save_ptr;
   file_name = strtok_r (file_name, " ", &save_ptr);
@@ -85,14 +85,13 @@ start_process (void *file_name_)
 ////////////////// CELSO STUFF IS IN HERE
 
 	/* Initialize supplemental page table */
-	success2 = init_sup_table();
-	if (!success2) {
+	success = init_sup_table();
+	if (!success) {
 	        printf ("FATAL! fail to initialize suplemental page table\n");
 	        thread_exit ();
 	}
 
-	lock_init (&sup_lock);
-#if 0
+#if 0 /* debug */
 	//printf("\n \n %d", success2);
 	struct sup_page_entry *teste=malloc(sizeof *teste);
 	struct sup_page_entry *teste2=malloc(sizeof *teste2);
@@ -407,16 +406,15 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                                 - read_bytes);
 									
 									/* Add to supplemental page table */
-									lock_acquire (&sup_lock);
-									struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
-									save_sup_page (new_entry, (void *)mem_page, read_bytes,
+									save_sup_page ((void *)mem_page, read_bytes,
 																 zero_bytes,file_page, writable, FILE_DATA,
 																 file, esp, eip, save_ptr,
 																 (void (*) (void))ehdr.e_entry);
+#if 0 /* debug */
 									printf("the address that was just put in is: %p", (void *)mem_page);
 									printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
 									printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
-									lock_release (&sup_lock);
+#endif
 							 	}
               else 
                 {
@@ -449,7 +447,9 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
+#if 0 /* debug */
 	printf("start address of eip is %p \n",*eip);
+#endif
   success = true;
 
  done:
