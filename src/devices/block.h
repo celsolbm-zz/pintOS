@@ -73,12 +73,7 @@ struct block *block_register (const char *name, enum block_type,
 
 
 
-/*********************get the write count *******/
-
-unsigned long long get_sectors_written(struct block *);
-
-
-
-
+/* Get the write count */
+unsigned long long get_sectors_written (struct block *);
 
 #endif /* devices/block.h */

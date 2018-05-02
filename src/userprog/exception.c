@@ -8,9 +8,9 @@
 #include <hash.h>
 #include <user/syscall.h>
 #include "threads/vaddr.h"
+
 #include "vm/suptable.h"
 #include "vm/swaptable.h"
-#include "devices/block.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -153,13 +153,16 @@ if (!is_user_vaddr (fault_addr) || (fault_addr < BOTTOM_USER_SPACE))
 	struct sup_page_entry *tst;
 
 	new_addr = (void *)((uintptr_t)fault_addr & ~(uintptr_t)0xfff);
-	new_addr_3=new_addr;
-	beta = new_addr+0x200;
+	new_addr_3 = new_addr;
+	beta = new_addr + 0x200;
 	new_addr_2 = new_addr - PGSIZE;
-//	printf("\n the fault address was: %p ", (void *)fault_addr);  
-//	printf("\n the SHIFTED fault address was: %p ", (void *)new_addr); 
-//	printf("\n the SUBTRACTED fault address is: %p", (void *)new_addr_2); 
-//	printf("\n beta is %p  \n",beta);
+
+#if 0 /* debug */
+	printf("\n the fault address was: %p ", (void *)fault_addr);  
+	printf("\n the SHIFTED fault address was: %p ", (void *)new_addr); 
+	printf("\n the SUBTRACTED fault address is: %p", (void *)new_addr_2); 
+	printf("\n beta is %p  \n",beta);
+#endif
 
 	intr_enable ();
 	tst = sup_lookup ((void *)new_addr, thread_current ()->page_table);
@@ -181,8 +184,6 @@ if (!is_user_vaddr (fault_addr) || (fault_addr < BOTTOM_USER_SPACE))
 											tst->read_bytes, tst->zero_bytes, tst->writable);
 		return;
 	}
-
-
 
 	//I SHIFTED THE INTR TO BEFORE
 	//

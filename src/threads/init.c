@@ -90,10 +90,6 @@ main (void)
   thread_init ();
   console_init ();  
 
-// lock_init(&swap_lock);
-
-
-
   /* Greet user. */
   printf ("Pintos booting with %'"PRIu32" kB RAM...\n",
           init_ram_pages * PGSIZE / 1024);
@@ -131,6 +127,7 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
+	/* Initialize swap table */
 	init_swap_table();
 
   printf ("Boot complete.\n");

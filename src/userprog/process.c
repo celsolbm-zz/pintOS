@@ -70,7 +70,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-	bool success2;
+
   /* Extract program name */
   char *save_ptr;
   file_name = strtok_r (file_name, " ", &save_ptr);
@@ -85,29 +85,11 @@ start_process (void *file_name_)
 ////////////////// CELSO STUFF IS IN HERE
 
 	/* Initialize supplemental page table */
-	success2 = init_sup_table();
-	if (!success2) {
+	success = init_sup_table();
+	if (!success) {
 	        printf ("FATAL! fail to initialize suplemental page table\n");
 	        thread_exit ();
 	}
-
-	lock_init (&sup_lock);
-
-	/*Initialize the swap table */
-/*
-
-	lock_acquire(&swap_lock);
-bool success3;
-	if (!swap_init)
-	{
-success3=init_swap_table();
-
-swap_init= true;
-	}
-lock_release(&swap_lock);
-
-*/
-
 
 #if 0
 	//printf("\n \n %d", success2);
@@ -444,17 +426,12 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 										 uspage += PGSIZE;
 
 									}
-									lock_release (&sup_lock);
 
-									struct swap_entry *new_swap = malloc (sizeof *new_swap);
-									save_swap (new_swap, (void *)mem_page,read_bytes,zero_bytes,
-														 file_page,writable);
 							 	}
               else 
                  {
                   /* Entirely zero.
                      Don't read anything from disk. */
-
 									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 								/*********Maps each user address to an entry at the supplemental page table */
@@ -488,6 +465,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 
 
 								}
+
 #if 0
 							/* Cancel this part to create page fault */
 							if (!load_segment (file, file_page, (void *) mem_page,
@@ -511,6 +489,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
+
   success = true;
 
  done:
