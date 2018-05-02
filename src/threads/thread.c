@@ -500,12 +500,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-list_init (&t->holding_lock);
+	list_init (&t->holding_lock);
+
   /* Initialize process related information */
   list_init (&t->child_list);
   list_init (&t->open_file);
   t->parent_pid = NO_PARENT;
-strlcpy (t->parent_name, "NO", sizeof t->parent_name);
+	strlcpy (t->parent_name, "NO", sizeof t->parent_name);
   t->chinfo_by_parent = NULL;
   t->min_fd = INITIAL_FD; /* Initial fd is 2 */
   t->executable = NULL;
