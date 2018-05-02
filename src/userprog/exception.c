@@ -144,7 +144,12 @@ page_fault (struct intr_frame *f)
 
 
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
- 
+
+	if (!is_user_vaddr (fault_addr) || (fault_addr < BOTTOM_USER_SPACE))
+	{
+		page_fault_cnt++;
+		exit(-1);
+	}
 //////////// CELSO MODS STARTS HERE	
 	void *new_addr, *new_addr_2, *new_addr_3, *beta; 
 	struct sup_page_entry *tst;
@@ -152,7 +157,9 @@ page_fault (struct intr_frame *f)
 	new_addr_3 = new_addr;
 	beta = new_addr + 0x200;
 	new_addr_2 = new_addr - PGSIZE;
-#if 0
+
+#if 0 /* debug */
+>>>>>>> 194cc7b671335f6312b428dbf0f065829f970dd7
 	printf("\n the fault address was: %p ", (void *)fault_addr);  
 	printf("\n the SHIFTED fault address was: %p ", (void *)new_addr); 
 	printf("\n the SUBTRACTED fault address is: %p", (void *)new_addr_2); 
@@ -160,61 +167,18 @@ page_fault (struct intr_frame *f)
 #endif
 
 	intr_enable ();
+	tst = sup_lookup ((void *)new_addr, thread_current ()->page_table);
 
-	while (1) {
-		tst = sup_lookup ((void *)new_addr, &thread_current ()->page_table);
-		if (tst == NULL) {
-			new_addr = new_addr - PGSIZE;
-			if (!is_user_vaddr (new_addr) || (new_addr < BOTTOM_USER_SPACE))
-				break;
-
-			continue;
-		}
-		break;
-	}
-
-
-/******************TESTING SWAP STUFF********/
-#if 0
-	struct swap_entry *tst_swap;
-	while (1) {
-		tst_swap = swap_lookup ((void *)new_addr_3);
-		if (tst_swap == NULL) {
-#if 0
-			printf("\n new addr_3 is %p",new_addr_3);
-#endif
-			new_addr_3 = new_addr_3 - PGSIZE;
-			if (!is_user_vaddr (new_addr_3) || (new_addr_3 < BOTTOM_USER_SPACE))
-				break;
-
-			continue;
-		}
-		break;
-	}
-
-#if 0
-	if (tst_swap == NULL)
-		printf("\n NOTHING FOUND ON THE SWAP \n ");
+	if (tst == NULL) 
+	{
+		page_fault_cnt++;
+		exit(-1);
+	} 
 	else
-		printf("found swap! address is %p \n", tst_swap->addr);
-#endif
-#endif
-/*****************END OF TESTING SWAP STUFF**/
-
-	if (tst == NULL) {
-		//printf("\n RETURNED NULL \n");
-	} else {
-		//printf(" \n ALLOCING PAGE ADDRESS %p \n", tst->addr);
-
-		change_sup_data_location (tst, PAGE_TABLE);
-		
-		/* XXX: ChangHwan - I think we need to change swap table implementation */
-		//load_frame(tst_swap);
-#if 0
-		printf("offset of this swap is:  %d\n",tst_swap->swap_off);
-		block_print_stats ();
-#endif
-
+	{
+	  tst->alloced = true;	
+		load_segment (tst->arq, tst->file_page, (void *)tst->addr,
+											tst->read_bytes, tst->zero_bytes, tst->writable);
 		return;
 	}
 

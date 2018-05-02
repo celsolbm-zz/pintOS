@@ -407,35 +407,58 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                   zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
                                 - read_bytes);
 									
-									/* Add to supplemental page table */
-									save_sup_page ((void *)mem_page, read_bytes,
-																 zero_bytes,file_page, writable, FILE_DATA,
+							  /*******Maps each user address to an entry at the supplemental page table */
+									lock_acquire (&sup_lock);
+									uint8_t *uspage= (void*)mem_page;
+									while (read_bytes > 0 || zero_bytes > 0) 
+									{
+										size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+										size_t page_zero_bytes = PGSIZE - page_read_bytes;
+										struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
+										save_sup_page (new_entry, uspage, page_read_bytes,
+																 page_zero_bytes,file_page, writable, FILE_DATA,
 																 file, esp, eip, save_ptr,
 																 (void (*) (void))ehdr.e_entry);
-#if 0 /* debug */
-									printf("(%s) page_offset: %u\n", t->name, page_offset);
-									printf("(%s) p_filesz: %u\n", t->name, phdr.p_filesz);
-									printf("(%s) p_memsz: %u\n", t->name, phdr.p_memsz);
-									printf("(%s) the address that was just put in is: %p\n", t->name, (void *)mem_page);
-									printf("(%s) read_bytes: %u\n", t->name, read_bytes); 
-									printf("(%s) zero_bytes: %u\n\n", t->name, zero_bytes);
-#endif
+										//printf("the address that was just put in is: %p", uspage);
+										//printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
+										//printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
+							      file_page+=page_read_bytes+page_zero_bytes;
+										read_bytes -= page_read_bytes;
+										zero_bytes -= page_zero_bytes;
+										 uspage += PGSIZE;
+
+									}
 							 	}
               else 
-                {
+                 {
                   /* Entirely zero.
                      Don't read anything from disk. */
 									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
-
-									save_sup_page ((void *)mem_page, read_bytes,
-																 zero_bytes,file_page, writable, ZERO_PAGE,
+								/*********Maps each user address to an entry at the supplemental page table */
+									lock_acquire (&sup_lock);
+									uint8_t *uspage= (void*)mem_page;
+									while (read_bytes > 0 || zero_bytes > 0) 
+									{
+										size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+										size_t page_zero_bytes = PGSIZE - page_read_bytes;
+										struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
+										save_sup_page (new_entry, uspage, page_read_bytes,
+																 page_zero_bytes,file_page, writable, FILE_DATA,
 																 file, esp, eip, save_ptr,
 																 (void (*) (void))ehdr.e_entry);
-#if 0 /* debug */
-									printf(" \n is it coming here? ZERO PAGES \n");
-#endif
-                }
+										//printf("the address that was just put in is: %p", (void *)uspage);
+										//printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
+										//printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
+							      file_page+=page_read_bytes+page_zero_bytes;
+										read_bytes -= page_read_bytes;
+										zero_bytes -= page_zero_bytes;
+										 uspage += PGSIZE;
+
+									}
+									lock_release (&sup_lock);
+								}
+
 #if 0
 							/* Cancel this part to create page fault */
 							if (!load_segment (file, file_page, (void *) mem_page,
@@ -459,9 +482,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-#if 0 /* debug */
-	printf("start address of eip is %p \n",*eip);
-#endif
+
   success = true;
 
  done:

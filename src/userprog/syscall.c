@@ -38,7 +38,7 @@ syscall_handler (struct intr_frame *f)
 
 
   check_user_ptr ((const void *)f->esp);
-  sysno = *(int *)f->esp;
+	sysno = *(int *)f->esp;
   switch (sysno) {
     case SYS_HALT:
       halt ();
@@ -198,7 +198,7 @@ open (const char *file)
   temp_file = filesys_open (file);
   if (temp_file == NULL) {
     lock_release (&filesys_lock);
-    return -1;
+		return -1;
   }
 
   finfo = malloc (sizeof(struct file_info));
@@ -239,16 +239,13 @@ read (int fd, void *buffer, unsigned size)
 {
   int ret;
   struct file_info *finfo;
-
   if (fd == STDIN_FILENO) {
     char *bufptr = (char *)buffer;
     unsigned i;
-
     for (i = 0; i < size; i++) {
       *bufptr = input_getc ();
       bufptr++;
     }
-
     return (int)size;
   }
 
@@ -258,10 +255,8 @@ read (int fd, void *buffer, unsigned size)
     lock_release (&filesys_lock);
     return -1;
   }
-
   ret = file_read (finfo->file, buffer, size);
   lock_release (&filesys_lock);
-
   return ret;
 }
 
@@ -352,7 +347,7 @@ static void
 check_user_ptr (const void *uptr)
 {
   if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
-    exit (-1);
+		exit (-1);
 }
 /******************************************************************************/
 /* Check whether user-provided buffer UPTR is in the valid address space */
@@ -379,5 +374,5 @@ get_sysarg (struct intr_frame *f, int *sysarg, int arg_num)
     ptr = (int *)f->esp + i + 1; /* +1 for syscall number */
     check_user_ptr ((const void *)ptr);
     sysarg[i] = *ptr;
- }
+	}
 }
