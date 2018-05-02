@@ -39,7 +39,7 @@ syscall_handler (struct intr_frame *f)
   int sysarg[MAX_ARG];
 
   check_user_ptr ((const void *)f->esp);
-  sysno = *(int *)f->esp;
+	sysno = *(int *)f->esp;
   switch (sysno) {
     case SYS_HALT:
       halt ();
@@ -69,7 +69,7 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_REMOVE:
       get_sysarg (f, &sysarg[0], 1);
-      sysarg[0] = get_kernel_vaddr ((const void *)sysarg[0]);
+    sysarg[0] = get_kernel_vaddr ((const void *)sysarg[0]);
       f->eax = remove ((const char *)sysarg[0]);
       break;
 
@@ -87,8 +87,8 @@ syscall_handler (struct intr_frame *f)
     case SYS_READ:
       get_sysarg (f, &sysarg[0], 3);
       check_user_buffer ((const void *)sysarg[1], (unsigned)sysarg[2]);
-      sysarg[1] = get_kernel_vaddr ((const void *)sysarg[1]);
-      f->eax = read (sysarg[0], (void *)sysarg[1], (unsigned)sysarg[2]);
+//			sysarg[1] = get_kernel_vaddr ((const void *)sysarg[1]);
+			f->eax = read (sysarg[0], (void *)sysarg[1], (unsigned)sysarg[2]);
       break;
 
     case SYS_WRITE:
@@ -205,7 +205,7 @@ open (const char *file)
   temp_file = filesys_open (file);
   if (temp_file == NULL) {
     lock_release (&filesys_lock);
-    return -1;
+		return -1;
   }
 
   finfo = malloc (sizeof(struct file_info));
@@ -246,16 +246,13 @@ read (int fd, void *buffer, unsigned size)
 {
   int ret;
   struct file_info *finfo;
-
   if (fd == STDIN_FILENO) {
     char *bufptr = (char *)buffer;
     unsigned i;
-
     for (i = 0; i < size; i++) {
       *bufptr = input_getc ();
       bufptr++;
     }
-
     return (int)size;
   }
 
@@ -265,10 +262,8 @@ read (int fd, void *buffer, unsigned size)
     lock_release (&filesys_lock);
     return -1;
   }
-
   ret = file_read (finfo->file, buffer, size);
   lock_release (&filesys_lock);
-
   return ret;
 }
 
@@ -358,7 +353,7 @@ void
 check_user_ptr (const void *uptr)
 {
   if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
-    exit (-1);
+		exit (-1);
 }
 
 
@@ -396,7 +391,6 @@ get_sysarg (struct intr_frame *f, int *sysarg, int arg_num)
 {
   int i;
   int *ptr;
-printf("\n arg_num is:%d \n ",arg_num );
   for (i = 0; i < arg_num; i++) {
     ptr = (int *)f->esp + i + 1; /* +1 for syscall number */
     check_user_ptr ((const void *)ptr);
@@ -417,7 +411,7 @@ get_kernel_vaddr (const void *uaddr)
   kaddr = pagedir_get_page (cur->pagedir, uaddr);
   if (kaddr == NULL) {
     /* There is no valid physical address for uaddr */
-    exit (-1);
+		exit (-1);
   }
 
   return (int)kaddr;

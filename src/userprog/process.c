@@ -423,16 +423,27 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                   zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
                                 - read_bytes);
 									
-									/* Add to supplemental page table */
+							  /*******Maps each user address to an entry at the supplemental page table */
 									lock_acquire (&sup_lock);
-									struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
-									save_sup_page (new_entry, (void *)mem_page, read_bytes,
-																 zero_bytes,file_page, writable, FILE_DATA,
+									uint8_t *uspage= (void*)mem_page;
+									while (read_bytes > 0 || zero_bytes > 0) 
+									{
+										size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+										size_t page_zero_bytes = PGSIZE - page_read_bytes;
+										struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
+										save_sup_page (new_entry, uspage, page_read_bytes,
+																 page_zero_bytes,file_page, writable, FILE_DATA,
 																 file, esp, eip, save_ptr,
 																 (void (*) (void))ehdr.e_entry);
-									//printf("the address that was just put in is: %p", (void *)mem_page);
-									printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
-									printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
+										//printf("the address that was just put in is: %p", uspage);
+										//printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
+										//printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
+							      file_page+=page_read_bytes+page_zero_bytes;
+										read_bytes -= page_read_bytes;
+										zero_bytes -= page_zero_bytes;
+										 uspage += PGSIZE;
+
+									}
 									lock_release (&sup_lock);
 
 									struct swap_entry *new_swap = malloc (sizeof *new_swap);
@@ -440,19 +451,43 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 														 file_page,writable);
 							 	}
               else 
-                {
+                 {
                   /* Entirely zero.
                      Don't read anything from disk. */
 
-									struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
-									save_sup_page (new_entry, (void *)mem_page, read_bytes,
-																 zero_bytes,file_page, writable, ZERO_PAGE,
-																 file, esp, eip, save_ptr,
-																 (void (*) (void))ehdr.e_entry);
-									printf(" \n is it coming here? ZERO PAGES \n");
 									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
-                }
+								/*********Maps each user address to an entry at the supplemental page table */
+									lock_acquire (&sup_lock);
+									uint8_t *uspage= (void*)mem_page;
+									while (read_bytes > 0 || zero_bytes > 0) 
+									{
+										size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+										size_t page_zero_bytes = PGSIZE - page_read_bytes;
+										struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
+										save_sup_page (new_entry, uspage, page_read_bytes,
+																 page_zero_bytes,file_page, writable, FILE_DATA,
+																 file, esp, eip, save_ptr,
+																 (void (*) (void))ehdr.e_entry);
+										//printf("the address that was just put in is: %p", (void *)uspage);
+										//printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
+										//printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
+							      file_page+=page_read_bytes+page_zero_bytes;
+										read_bytes -= page_read_bytes;
+										zero_bytes -= page_zero_bytes;
+										 uspage += PGSIZE;
+
+									}
+									lock_release (&sup_lock);
+			
+								
+								
+								
+								
+								
+
+
+								}
 #if 0
 							/* Cancel this part to create page fault */
 							if (!load_segment (file, file_page, (void *) mem_page,
@@ -476,7 +511,6 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-	printf("start address of eip is %p \n",*eip);
   success = true;
 
  done:

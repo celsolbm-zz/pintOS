@@ -144,7 +144,10 @@ page_fault (struct intr_frame *f)
 
 
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
-
+if (!is_user_vaddr (fault_addr) || (fault_addr < BOTTOM_USER_SPACE))
+{page_fault_cnt++;
+	exit(-1);
+}
 //////////// CELSO MODS STARTS HERE	
 	void *new_addr, *new_addr_2, *new_addr_3, *beta; 
 	struct sup_page_entry *tst;
@@ -153,71 +156,29 @@ page_fault (struct intr_frame *f)
 	new_addr_3=new_addr;
 	beta = new_addr+0x200;
 	new_addr_2 = new_addr - PGSIZE;
-	printf("\n the fault address was: %p ", (void *)fault_addr);  
-	printf("\n the SHIFTED fault address was: %p ", (void *)new_addr); 
-	printf("\n the SUBTRACTED fault address is: %p", (void *)new_addr_2); 
-	printf("\n beta is %p  \n",beta);
+//	printf("\n the fault address was: %p ", (void *)fault_addr);  
+//	printf("\n the SHIFTED fault address was: %p ", (void *)new_addr); 
+//	printf("\n the SUBTRACTED fault address is: %p", (void *)new_addr_2); 
+//	printf("\n beta is %p  \n",beta);
 
 	intr_enable ();
-
-	while (1) {
-		tst = sup_lookup ((void *)new_addr, thread_current ()->page_table);
-		if (tst == NULL) {
-			new_addr = new_addr - PGSIZE;
-			if (!is_user_vaddr (new_addr) || (new_addr < BOTTOM_USER_SPACE))
-				break;
-
-			continue;
-		}
-		break;
-	}
-
+	tst = sup_lookup ((void *)new_addr, thread_current ()->page_table);
 
 /******************TESTING SWAP STUFF********/
-
-struct swap_entry *tst_swap;
-	while (1) {
-		tst_swap = swap_lookup ((void *)new_addr_3);
-		if (tst_swap == NULL) {
-			printf("\n new addr_3 is %p",new_addr_3);
-			new_addr_3 = new_addr_3 - PGSIZE;
-			if (!is_user_vaddr (new_addr_3) || (new_addr_3 < BOTTOM_USER_SPACE))
-				break;
-
-			continue;
-		}
-		break;
-	}
-
-if (tst_swap ==NULL)
-printf("\n NOTHING FOUND ON THE SWAP \n ");
-else
-{	
-	printf("found swap! address is %p \n", tst_swap->addr);
-}
-
 
 /*****************END OF TESTING SWAP STUFF**/
 
 
-	if (tst == NULL) {
-		printf("\n RETURNED NULL \n");
-	} else {
-		printf(" \n ALLOCING PAGE ADDRESS %p \n", tst->addr);
+	if (tst == NULL) 
+	{
+		page_fault_cnt++;
+		exit(-1);
+	} 
+	else
+	{
 	  tst->alloced = true;	
-		
-
 		load_segment (tst->arq, tst->file_page, (void *)tst->addr,
 											tst->read_bytes, tst->zero_bytes, tst->writable);
-		load_frame(tst_swap);
-		
-		
-		
-		
-		
-		
-		printf("offset of this swap is:  %d ",tst_swap->swap_off);
-		block_print_stats();
 		return;
 	}
 
