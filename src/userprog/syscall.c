@@ -19,11 +19,9 @@ static int child_number = 0;
 /*
  * Helper functions
  */
-void check_user_ptr (const void *uptr);
-void check_user_ptr2 (const void *uptr);
-void check_user_buffer (const void *uptr, unsigned size);
-void get_sysarg (struct intr_frame *f, int *sysarg, int arg_num);
-int get_kernel_vaddr (const void *uaddr);
+static void check_user_ptr (const void *uptr);
+static void check_user_buffer (const void *uptr, unsigned size);
+static void get_sysarg (struct intr_frame *f, int *sysarg, int arg_num);
 
 void
 syscall_init (void) 
@@ -37,6 +35,7 @@ syscall_handler (struct intr_frame *f)
 {
   int sysno;
   int sysarg[MAX_ARG];
+
 
   check_user_ptr ((const void *)f->esp);
   sysno = *(int *)f->esp;
@@ -52,7 +51,6 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_EXEC:
       get_sysarg (f, &sysarg[0], 1);
-      sysarg[0] = get_kernel_vaddr ((const void *)sysarg[0]);
       f->eax = exec ((const char *)sysarg[0]);
       break;
 
@@ -63,19 +61,16 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_CREATE:
       get_sysarg (f, &sysarg[0], 2);
-      sysarg[0] = get_kernel_vaddr ((const void *)sysarg[0]);
       f->eax = create ((const char *)sysarg[0], (unsigned)sysarg[1]);
       break;
 
     case SYS_REMOVE:
       get_sysarg (f, &sysarg[0], 1);
-      sysarg[0] = get_kernel_vaddr ((const void *)sysarg[0]);
       f->eax = remove ((const char *)sysarg[0]);
       break;
 
     case SYS_OPEN:
       get_sysarg (f, &sysarg[0], 1);
-      sysarg[0] = get_kernel_vaddr ((const void *)sysarg[0]);
       f->eax = open ((const char *)sysarg[0]);
       break;
 
@@ -87,14 +82,12 @@ syscall_handler (struct intr_frame *f)
     case SYS_READ:
       get_sysarg (f, &sysarg[0], 3);
       check_user_buffer ((const void *)sysarg[1], (unsigned)sysarg[2]);
-      sysarg[1] = get_kernel_vaddr ((const void *)sysarg[1]);
       f->eax = read (sysarg[0], (void *)sysarg[1], (unsigned)sysarg[2]);
       break;
 
     case SYS_WRITE:
       get_sysarg (f, &sysarg[0], 3);
       check_user_buffer ((const void *)sysarg[1], (unsigned)sysarg[2]);
-      sysarg[1] = get_kernel_vaddr ((const void *)sysarg[1]);
       f->eax = write (sysarg[0], (const void *)sysarg[1], (unsigned)sysarg[2]);
       break;
 
@@ -348,37 +341,22 @@ close (int fd)
   free (finfo);
   lock_release (&filesys_lock);
 }
+/******************************************************************************/
 
-/*
+/* 
  * Helper functions
  */
-
+/******************************************************************************/
 /* Check whether user-provided pointer UPTR is in the valid address space */
-void
+static void
 check_user_ptr (const void *uptr)
 {
   if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
     exit (-1);
 }
-
-
-void
-check_user_ptr2 (const void *uptr)
-{
-  if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
-    printf("\n testing pointer after the fetching of data, NOT A UADDR!!");
-else
-{ printf("\n oh shit it is a uaddr");
-//if (*uptr==NULL)
-//printf("\n well at least is null\n");
-
-}
-}
-
-
-
+/******************************************************************************/
 /* Check whether user-provided buffer UPTR is in the valid address space */
-void
+static void
 check_user_buffer (const void *uptr, unsigned size)
 {
   char *ptr = (char *)uptr;
@@ -389,36 +367,17 @@ check_user_buffer (const void *uptr, unsigned size)
     ptr++;
   }
 }
-
+/******************************************************************************/
 /* Get system call arguments from caller's stack */
-void
+static void
 get_sysarg (struct intr_frame *f, int *sysarg, int arg_num)
 {
   int i;
   int *ptr;
-printf("\n arg_num is:%d \n ",arg_num );
+
   for (i = 0; i < arg_num; i++) {
     ptr = (int *)f->esp + i + 1; /* +1 for syscall number */
     check_user_ptr ((const void *)ptr);
     sysarg[i] = *ptr;
  }
-
-
-}
-
-/* Get kernel virtual address from user virtual address */
-int
-get_kernel_vaddr (const void *uaddr)
-{
-  void *kaddr;
-  struct thread *cur = thread_current ();
-
-  check_user_ptr (uaddr);
-  kaddr = pagedir_get_page (cur->pagedir, uaddr);
-  if (kaddr == NULL) {
-    /* There is no valid physical address for uaddr */
-    exit (-1);
-  }
-
-  return (int)kaddr;
 }

@@ -1,6 +1,7 @@
-#include "suptable.h"
+#include "vm/suptable.h"
 #include "threads/thread.h"
 #include "threads/malloc.h"
+#include "vm/swaptable.h"
 
 struct lock sup_lock;
 
@@ -41,14 +42,43 @@ init_sup_table (void)
 	return result;
 }
 /******************************************************************************/
+void
+change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
+{
+	switch (type) {
+		case FILE_DATA:
+			/* XXX: This case may not necessary */
+			break;
+
+		case SWAP_FILE:
+			ASSERT (spte->alloced == true);
+			spte->alloced = false;
+			/* XXX: Call function that move this page to swap */
+			break;
+
+		case ZERO_PAGE:
+			/* XXX: This case may not necessary */
+			break;
+
+		case PAGE_TABLE:
+			//ASSERT (spte->alloced == false);
+			load_segment (spte->arq, spte->file_page, (void *)spte->addr,
+										spte->read_bytes, spte->zero_bytes, spte->writable);
+			spte->alloced = true;
+			break;
+	}
+
+	spte->type = type;
+}
+/******************************************************************************/
 struct sup_page_entry *
-sup_lookup (void *address, struct hash hash_list)
+sup_lookup (void *address, struct hash *sup_table)
 {
 	struct sup_page_entry pg;
 	struct hash_elem *e;
 	
 	pg.addr = address;
-	e = hash_find (&hash_list, &pg.page_elem);
+	e = hash_find (sup_table, &pg.page_elem);
 
 	return (e != NULL) ? (hash_entry (e, struct sup_page_entry, page_elem)) :
 											 (NULL);

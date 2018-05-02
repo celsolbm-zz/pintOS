@@ -2,13 +2,8 @@
 #define _SWAPTABLE_H
 
 #include <hash.h>
-#include "threads/synch.h"
 #include "devices/block.h"
 #include "filesys/file.h"
-
-#define SECTOR_SIZE 512
-
-struct lock swap_lock;
 
 struct swap_entry
 {

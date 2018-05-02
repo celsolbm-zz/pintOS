@@ -125,7 +125,6 @@ struct thread
 		/*
 		 * Project 3: Virtual Memory
 		 */
-		struct hash frame_table;	
 		struct hash page_table;
 
     /* Owned by thread.c. */

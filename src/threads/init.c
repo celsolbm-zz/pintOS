@@ -37,7 +37,9 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
+#include "vm/frame.h"
 #include "vm/swaptable.h"///////include the SWAP TABLE
+
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
@@ -127,8 +129,11 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
+	/* Initialize frame table */
+	init_frame_table ();
+
 	/* Initialize swap table */
-	init_swap_table();
+	init_swap_table ();
 
   printf ("Boot complete.\n");
   

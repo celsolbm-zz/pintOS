@@ -75,14 +75,7 @@ start_process (void *file_name_)
   char *save_ptr;
   file_name = strtok_r (file_name, " ", &save_ptr);
 
-	/* Initialize frame table */
-	success = init_frame_table ();
-	if (!success) {
-		printf ("FATAL! fail to initialize frame table\n");
-		thread_exit ();
-	}
-
-////////////////// CELSO STUFF IS IN HERE
+	////////////////// CELSO STUFF IS IN HERE
 
 	/* Initialize supplemental page table */
 	success = init_sup_table();
@@ -180,8 +173,12 @@ process_wait (pid_t child_pid)
 
   /* Waiting for child to exit */
   chinfo->wait_status = WAITED;
-  if (chinfo->exit_status == NOT_EXITED)
+  if (chinfo->exit_status == NOT_EXITED) {
+		//printf("WAITING CHILD, child pid: %d\n", chinfo->pid);
     sema_down (&chinfo->exit_sema);
+	}
+
+	//printf("CHILD EXITED, child pid: %d\n", chinfo->pid);
 
   /* Retrieve child's exit code */
   exit_code = chinfo->exit_code;
@@ -365,6 +362,11 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
+#if 0
+	printf("(%s) Program header number: %d\n", t->name, ehdr.e_phnum);
+	printf("(%s) File length: %u\n\n", t->name, (uint32_t)file_length (file));
+#endif
+
   for (i = 0; i < ehdr.e_phnum; i++) 
     {
       struct Elf32_Phdr phdr;
@@ -411,13 +413,13 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 																 file, esp, eip, save_ptr,
 																 (void (*) (void))ehdr.e_entry);
 #if 0 /* debug */
-									printf("the address that was just put in is: %p", (void *)mem_page);
-									printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
-									printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
-									lock_release (&sup_lock);
+									printf("(%s) page_offset: %u\n", t->name, page_offset);
+									printf("(%s) p_filesz: %u\n", t->name, phdr.p_filesz);
+									printf("(%s) p_memsz: %u\n", t->name, phdr.p_memsz);
+									printf("(%s) the address that was just put in is: %p\n", t->name, (void *)mem_page);
+									printf("(%s) read_bytes: %u\n", t->name, read_bytes); 
+									printf("(%s) zero_bytes: %u\n\n", t->name, zero_bytes);
 #endif
-									save_swap ((void *)mem_page,read_bytes,zero_bytes,
-														 file_page,writable);
 							 	}
               else 
                 {
@@ -551,9 +553,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
 
-
-      if (kpage == NULL)
-        return false;
+      if (kpage == NULL) {
+				kpage = evict_frame_entry ();
+				if (kpage == NULL)
+					return false;
+			}
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
@@ -569,6 +573,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false; 
         }
+
+			save_frame_entry (upage);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -587,16 +593,20 @@ setup_stack (void **esp, const char *command, char **save_ptr)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else {
-        palloc_free_page (kpage);
-        return success;
-      }
-    }
+	if (kpage == NULL) {
+		kpage = evict_frame_entry ();
+		if (kpage == NULL)
+			return false;
+	}
+
+	success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+	if (!success) {
+		palloc_free_page (kpage);
+		return success;
+	}
+	
+	*esp = PHYS_BASE;
+	save_frame_entry (((uint8_t *)PHYS_BASE) - PGSIZE);
 
   /* Setup stack */
   char **argv = malloc (4 * sizeof(char *));

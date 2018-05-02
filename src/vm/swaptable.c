@@ -1,7 +1,12 @@
 #include "vm/swaptable.h"
 #include "userprog/pagedir.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "threads/malloc.h"
+
+#define SECTOR_SIZE 512
+
+struct lock swap_lock;
 
 /******************************************************************************/
 static inline unsigned
@@ -52,7 +57,7 @@ void
 save_swap (void *address, uint32_t r_bytes, uint32_t z_bytes,
 					 uint32_t file_p, bool wr)
 {
-	struct swap_entry *new_swap = malloc (sizeof (struct swap_entry));
+	struct swap_entry *new_swap = malloc (sizeof(struct swap_entry));
 
 	lock_acquire (&swap_lock);
 	new_swap->read_bytes = r_bytes;
