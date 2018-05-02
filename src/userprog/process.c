@@ -37,7 +37,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp,
 pid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
+  char *fn_copy, *cmd_name, *save_ptr;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -47,16 +47,21 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  char *save_ptr;
-  file_name = strtok_r ((char *) file_name, " ", &save_ptr);
+	cmd_name = palloc_get_page (0);
+	if (cmd_name == NULL)
+		return TID_ERROR;
+	strlcpy (cmd_name, file_name, PGSIZE);
+	
+  cmd_name = strtok_r ((char *) cmd_name, " ", &save_ptr);
 
 #if 0 /* debug */
-  //printf ("(process_execute) file_name: %s\n", file_name);
+  printf ("(process_execute) file_name: %s\n", file_name);
   printf ("(process_execute) fn_copy: %s\n", fn_copy);
+	printf ("(process_execute) cmd_name: %s\n", cmd_name);
 #endif
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (cmd_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return (pid_t)tid;
@@ -406,28 +411,6 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                   read_bytes = page_offset + phdr.p_filesz;
                   zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
                                 - read_bytes);
-									
-							  /*******Maps each user address to an entry at the supplemental page table */
-									lock_acquire (&sup_lock);
-									uint8_t *uspage= (void*)mem_page;
-									while (read_bytes > 0 || zero_bytes > 0) 
-									{
-										size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-										size_t page_zero_bytes = PGSIZE - page_read_bytes;
-										struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
-										save_sup_page (new_entry, uspage, page_read_bytes,
-																 page_zero_bytes,file_page, writable, FILE_DATA,
-																 file, esp, eip, save_ptr,
-																 (void (*) (void))ehdr.e_entry);
-										//printf("the address that was just put in is: %p", uspage);
-										//printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
-										//printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
-							      file_page+=page_read_bytes+page_zero_bytes;
-										read_bytes -= page_read_bytes;
-										zero_bytes -= page_zero_bytes;
-										 uspage += PGSIZE;
-
-									}
 							 	}
               else 
                  {
@@ -435,36 +418,11 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
                      Don't read anything from disk. */
 									read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
-								/*********Maps each user address to an entry at the supplemental page table */
-									lock_acquire (&sup_lock);
-									uint8_t *uspage= (void*)mem_page;
-									while (read_bytes > 0 || zero_bytes > 0) 
-									{
-										size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-										size_t page_zero_bytes = PGSIZE - page_read_bytes;
-										struct sup_page_entry *new_entry = malloc (sizeof *new_entry);
-										save_sup_page (new_entry, uspage, page_read_bytes,
-																 page_zero_bytes,file_page, writable, FILE_DATA,
-																 file, esp, eip, save_ptr,
-																 (void (*) (void))ehdr.e_entry);
-										//printf("the address that was just put in is: %p", (void *)uspage);
-										//printf("\n VALUE OF READ_BYTES %d \n",read_bytes); 
-										//printf(" \n VALUE OF ZERO_BYTES %d \n", zero_bytes);
-							      file_page+=page_read_bytes+page_zero_bytes;
-										read_bytes -= page_read_bytes;
-										zero_bytes -= page_zero_bytes;
-										 uspage += PGSIZE;
-
-									}
-									lock_release (&sup_lock);
 								}
 
-#if 0
-							/* Cancel this part to create page fault */
 							if (!load_segment (file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable)) 
 								goto done;																			
-#endif
             }
           else
             goto done;
@@ -493,7 +451,6 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -571,15 +528,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      /* Create new supplemental page table entry */
+			save_sup_page (upage, file, ofs, page_read_bytes, page_zero_bytes,
+										 writable, FILE_DATA);
 
-      if (kpage == NULL) {
-				kpage = evict_frame_entry ();
-				if (kpage == NULL)
-					return false;
-			}
-
+#if 0
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
@@ -594,13 +547,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false; 
         }
-
-			save_frame_entry (upage);
+#endif
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+			ofs += page_read_bytes;
     }
   return true;
 }
@@ -611,23 +564,23 @@ static bool
 setup_stack (void **esp, const char *command, char **save_ptr) 
 {
   uint8_t *kpage;
+	struct sup_page_entry *spte;
+	struct frame_table_entry *fte;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-	if (kpage == NULL) {
-		kpage = evict_frame_entry ();
-		if (kpage == NULL)
-			return false;
-	}
+	/* First, create supplemental page table entry for stack page */
+	spte = save_sup_page (((void *)PHYS_BASE) - PGSIZE, NULL,
+												0, 0, 0, true, STACK_PAGE);
+	fte = get_user_frame (spte, PAL_USER | PAL_ZERO);
+	kpage = fte->kpage;
 
 	success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
 	if (!success) {
-		palloc_free_page (kpage);
+		free_user_frame (fte);
 		return success;
 	}
 	
 	*esp = PHYS_BASE;
-	save_frame_entry (((uint8_t *)PHYS_BASE) - PGSIZE);
 
   /* Setup stack */
   char **argv = malloc (4 * sizeof(char *));
@@ -699,7 +652,7 @@ setup_stack (void **esp, const char *command, char **save_ptr)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();

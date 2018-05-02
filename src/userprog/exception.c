@@ -5,7 +5,6 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include <hash.h>
 #include <user/syscall.h>
 #include "threads/vaddr.h"
 
@@ -133,6 +132,9 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+	struct sup_page_entry *spte;
+	void *user_addr;
+	bool success;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -141,24 +143,16 @@ page_fault (struct intr_frame *f)
      See [IA32-v2a] "MOV--Move to/from Control Registers" and
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
-
-
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
-	if (!is_user_vaddr (fault_addr) || (fault_addr < BOTTOM_USER_SPACE))
-	{
-		page_fault_cnt++;
-		exit(-1);
-	}
 //////////// CELSO MODS STARTS HERE	
+#if 0 /* debug */
 	void *new_addr, *new_addr_2, *new_addr_3, *beta; 
-	struct sup_page_entry *tst;
 	new_addr = (void *)((uintptr_t)fault_addr & ~(uintptr_t)0xfff);
 	new_addr_3 = new_addr;
 	beta = new_addr + 0x200;
 	new_addr_2 = new_addr - PGSIZE;
 
-#if 0 /* debug */
 >>>>>>> 194cc7b671335f6312b428dbf0f065829f970dd7
 	printf("\n the fault address was: %p ", (void *)fault_addr);  
 	printf("\n the SHIFTED fault address was: %p ", (void *)new_addr); 
@@ -167,21 +161,7 @@ page_fault (struct intr_frame *f)
 #endif
 
 	intr_enable ();
-	tst = sup_lookup ((void *)new_addr, thread_current ()->page_table);
-
-	if (tst == NULL) 
-	{
-		page_fault_cnt++;
-		exit(-1);
-	} 
-	else
-	{
-	  tst->alloced = true;	
-		load_segment (tst->arq, tst->file_page, (void *)tst->addr,
-											tst->read_bytes, tst->zero_bytes, tst->writable);
-		return;
-	}
-
+	
 	//I SHIFTED THE INTR TO BEFORE
 	/* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -195,17 +175,35 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (not_present || (is_kernel_vaddr (fault_addr) && user))
-    exit (-1);
+	success = false;
+	if (not_present && is_user_vaddr (fault_addr) &&
+			fault_addr > BOTTOM_USER_SPACE) {
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+		user_addr = (void *)((uintptr_t)fault_addr & ~(uintptr_t)0xfff);
+		spte = sup_lookup (user_addr);
+		if (spte != NULL) {
+			ASSERT (spte->type != PAGE_TABLE);
+			// DUMP_SUP_PAGE_ENTRY (spte);
+			if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE))
+				success = change_sup_data_location (spte, PAGE_TABLE);
+			else if (spte->type == STACK_PAGE)
+				success = true;
+		} 
+	}
+
+	if (!success) {
+		/* To implement virtual memory, delete the rest of the function
+			 body, and replace it with code that brings in the page to
+			 which fault_addr refers. */
+#if 0
+		printf ("Page fault at %p: %s error %s page in %s context.\n",
+						fault_addr,
+						not_present ? "not present" : "rights violation",
+						write ? "writing" : "reading",
+						user ? "user" : "kernel");
+		kill (f);
+#endif
+
+		exit (-1);
+	}
 }
-

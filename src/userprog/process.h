@@ -8,6 +8,8 @@
 #define NO_PARENT (-1)
 typedef int pid_t;
 
+bool install_page (void *upage, void *kpage, bool writable);
+
 /* Load status */
 typedef enum load_status {
   LOAD_NOT_BEGIN =  1 << 0,

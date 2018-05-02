@@ -12,6 +12,8 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 
+#include "vm/suptable.h"
+
 #define MAX_ARG 3 /* Maximum number of system call arguments */
 
 static void syscall_handler (struct intr_frame *);
@@ -20,6 +22,7 @@ static int child_number = 0;
  * Helper functions
  */
 static void check_user_ptr (const void *uptr);
+static void check_user_string (const char *ustr);
 static void check_user_buffer (const void *uptr, unsigned size);
 static void get_sysarg (struct intr_frame *f, int *sysarg, int arg_num);
 
@@ -51,6 +54,7 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_EXEC:
       get_sysarg (f, &sysarg[0], 1);
+			check_user_string ((const char *)sysarg[0]);
       f->eax = exec ((const char *)sysarg[0]);
       break;
 
@@ -61,16 +65,19 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_CREATE:
       get_sysarg (f, &sysarg[0], 2);
+			check_user_string ((const char *)sysarg[0]);
       f->eax = create ((const char *)sysarg[0], (unsigned)sysarg[1]);
       break;
 
     case SYS_REMOVE:
       get_sysarg (f, &sysarg[0], 1);
+			check_user_string ((const char *)sysarg[0]);
       f->eax = remove ((const char *)sysarg[0]);
       break;
 
     case SYS_OPEN:
       get_sysarg (f, &sysarg[0], 1);
+			check_user_string ((const char *)sysarg[0]);
       f->eax = open ((const char *)sysarg[0]);
       break;
 
@@ -136,7 +143,7 @@ exec (const char *cmd_line)
   pid_t child_pid;
   struct child_info *chinfo;
 
-  if(child_number > 30)
+  if (child_number > 30)
     return PID_ERROR;
 
   child_pid = (pid_t)process_execute (cmd_line);
@@ -170,6 +177,7 @@ create (const char *file, unsigned initial_size)
 
   lock_acquire (&filesys_lock);
   ret = filesys_create (file, (off_t)initial_size);
+	// printf ("CREATE RET: %s\n", (ret == true) ? "TRUE" : "FALSE");
   lock_release (&filesys_lock);
 
   return ret;
@@ -346,8 +354,42 @@ close (int fd)
 static void
 check_user_ptr (const void *uptr)
 {
+	bool success;
+	struct sup_page_entry *spte;
+	void *user_addr;
+
   if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
 		exit (-1);
+
+	success = false;
+	user_addr = (void *)((uintptr_t)uptr & ~(uintptr_t)0xfff);
+	spte = sup_lookup (user_addr);
+	if (spte != NULL) {
+		// DUMP_SUP_PAGE_ENTRY (spte);
+		if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE))
+			success = change_sup_data_location (spte, PAGE_TABLE);
+		else if ((spte->type == STACK_PAGE) || (spte->type == PAGE_TABLE))
+			success = true;
+	}
+
+	// printf("AFTER SUP_LOOKUP!, uptr: %p, success: %s, spte: %s\n", uptr,
+	// 		    (success == true) ? "TRUE" : "FALSE",
+	// 				(spte == NULL) ? "NOT FOUND" : "FOUND");
+
+	if (!success)
+		exit (-1);
+}
+/******************************************************************************/
+/* Check whether user-provided string is in the valid address space */
+static void
+check_user_string (const char *ustr)
+{
+	char *str = (char *)ustr;
+
+	while (*str != 0) {
+		check_user_ptr ((const void *)str);
+		str++;
+	}
 }
 /******************************************************************************/
 /* Check whether user-provided buffer UPTR is in the valid address space */

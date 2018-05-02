@@ -1,14 +1,10 @@
 #include "vm/frame.h"
 #include "threads/thread.h"
-#include "threads/synch.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
-#include "threads/palloc.h"
 #include "userprog/pagedir.h"
 #include "vm/suptable.h"
 #include <stdio.h>
-
-struct lock frame_lock;
 
 /******************************************************************************/
 /* Initialize frame table */
@@ -16,22 +12,24 @@ void
 init_frame_table (void)
 {
 	lock_init (&frame_lock);
-	list_init (&lru_list);
+	list_init (&frame_table);
 }
 /******************************************************************************/
-void
-save_frame_entry (void *upage)
+/* Allocate a frame from user pool and return kernel virtual address */
+struct frame_table_entry *
+get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 {
 	struct frame_table_entry *new_fte;
-	struct thread *cur;
 	uint8_t *kpage;
 
-	kpage = palloc_get_page (PAL_USER);
-	cur = thread_current ();
-	kpage = pagedir_get_page (cur->pagedir, upage);
+	kpage = palloc_get_page (pal_flag);
 	if (kpage == NULL) {
-		printf("[SAVE] FATAL! NO VALID MAPPING FOR UPAGE(%p) EXISTS!!!\n", upage);
-		return;
+		kpage = evict_frame_entry (pal_flag);
+		if (kpage == NULL) {
+			ASSERT (0);
+		} else {
+			lock_release (&frame_lock);
+		}
 	}
 
 	lock_acquire (&frame_lock);
@@ -39,157 +37,65 @@ save_frame_entry (void *upage)
 	new_fte = malloc (sizeof(struct frame_table_entry));
 	if (new_fte == NULL) {
 		printf("[SAVE] FATAL! ALLOCATE NEW FRAME TABLE ENTRY FAILED!!!\n");
-		return;
+		return NULL;
 	}
 
-	new_fte->paddr = (void *)vtop (kpage);
-	new_fte->upage = upage;
+	new_fte->kpage = kpage;
+	new_fte->spte = spte;
+	new_fte->owner = thread_current ();
 
-	hash_insert (&frame_table, &new_fte->frame_elem);
-	list_push_front (&lru_list, &new_fte->lru_elem);
+	list_push_back (&frame_table, &new_fte->frame_elem);
 
 	lock_release (&frame_lock);
+
+	return new_fte;
+}
+/******************************************************************************/
+void
+free_user_frame (struct frame_table_entry *fte)
+{
+	list_remove (&fte->frame_elem);
+	palloc_free_page (fte->kpage);
+	free (fte);
 }
 /******************************************************************************/
 /* Evict one frame table entry and return evicted entry's kernel virtual addr
    to the calling function */
 void *
-evict_frame_entry (void)
+evict_frame_entry (enum palloc_flags pal_flag)
 {
-	struct list_elem *e, *not_access_not_dirty, *not_access_dirty,
-									 *access_not_dirty, *access_dirty;
+	struct list_elem *e;
 	struct frame_table_entry *fte;
-	struct sup_page_entry *spte;
-	struct thread *cur;
-	uint32_t *pd;
-	void *kpage, *ret_kpage;
 
-	cur = thread_current ();
-	pd = cur->pagedir;
-
-	not_access_not_dirty = NULL;
-	not_access_dirty = NULL;
-	access_not_dirty = NULL;
-	access_dirty = NULL;
+#if 0
+	printf ("EVICT CALLED!!!\n");
+#endif
 
 	lock_acquire (&frame_lock);
-	
-	for (e = list_begin (&lru_list); e != list_end (&lru_list);
-			 e = list_next (e)) {
-		fte = list_entry (e, struct frame_table_entry, lru_elem);
+	e = list_begin (&frame_table);
+	while (1) {
+		fte = list_entry (e, struct frame_table_entry, frame_elem);
 
-		if (not_access_not_dirty == NULL) {
-			if (!pagedir_is_dirty (pd, (const void *)fte->upage) &&
-					!pagedir_is_accessed (pd, (const void *)fte->upage))
-				not_access_not_dirty = e;
-		} else if (not_access_dirty == NULL) {
-			if (pagedir_is_dirty (pd, (const void *)fte->upage) &&
-					!pagedir_is_accessed (pd, (const void *)fte->upage))
-				not_access_dirty = e;
-		} else if (access_not_dirty == NULL) {
-			if (!pagedir_is_dirty (pd, (const void *)fte->upage) &&
-					pagedir_is_accessed (pd, (const void *)fte->upage))
-				access_not_dirty = e;
-		} else if (access_dirty == NULL) {
-			if (pagedir_is_dirty (pd, (const void *)fte->upage) &&
-					pagedir_is_accessed (pd, (const void *)fte->upage))
-				access_dirty = e;
+		if (pagedir_is_accessed (fte->owner->pagedir, fte->spte->upage)) {
+			pagedir_set_accessed (fte->owner->pagedir, fte->spte->upage, false);
+		} else {
+			if (pagedir_is_dirty (fte->owner->pagedir, fte->spte->upage) &&
+					fte->spte->type != STACK_PAGE)	{
+				/* Evict this entry (not accessed, dirty), move to swap, except for
+				   stack page */
+				change_sup_data_location (fte->spte, SWAP_FILE);
+				list_remove (&fte->frame_elem);
+				pagedir_clear_page (fte->owner->pagedir, fte->spte->upage);
+				free_user_frame (fte);
+
+				return palloc_get_page (pal_flag);
+			}
 		}
+
+		e = list_next (e);
+		if (e == list_end (&frame_table))
+			e = list_begin (&frame_table);
 	}
 
-	if (not_access_not_dirty != NULL) {
-		/* First, evict not accessed, not dirty */
-		fte = list_entry (not_access_not_dirty,
-											struct frame_table_entry, lru_elem);
-		list_remove (not_access_not_dirty);
-
-		/* Save this user page to swap */
-		spte = sup_lookup (fte->upage, &cur->page_table);
-		change_sup_data_location (spte, SWAP_FILE);
-
-		/* Return current kpage to user pool,
-			 invalidate page tabe entry,
-			 and get new kpage */
-		kpage = pagedir_get_page (pd, fte->upage);
-		palloc_free_page (kpage);
-		pagedir_clear_page (pd, fte->upage);
-		ret_kpage = palloc_get_page (PAL_USER);
-
-		hash_delete (&frame_table, &fte->frame_elem);
-		free (fte);
-	} else if (not_access_dirty != NULL) {
-		/* If fisrt case isn't found, then evict not accessed, dirty */
-		fte = list_entry (not_access_dirty, struct frame_table_entry, lru_elem);
-		list_remove (not_access_dirty);
-
-		/* Save this user page to swap */
-		spte = sup_lookup (fte->upage, &cur->page_table);
-		change_sup_data_location (spte, SWAP_FILE);
-
-		/* Clear dirty bit */
-		pagedir_set_dirty (pd, fte->upage, false);
-
-		/* Return current kpage to user pool,
-			 invalidate page tabe entry,
-			 and get new kpage */
-		kpage = pagedir_get_page (pd, fte->upage);
-		palloc_free_page (kpage);
-		pagedir_clear_page (pd, fte->upage);
-		ret_kpage = palloc_get_page (PAL_USER);
-
-		hash_delete (&frame_table, &fte->frame_elem);
-		free (fte);
-	} else if (access_not_dirty != NULL) {
-		/* If second case failed, then evict accessed, not dirty */
-		fte = list_entry (access_not_dirty, struct frame_table_entry, lru_elem);
-		list_remove (access_not_dirty);
-
-		/* Save this user page to swap */
-		spte = sup_lookup (fte->upage, &cur->page_table);
-		change_sup_data_location (spte, SWAP_FILE);
-
-		/* Clear access bit */
-		pagedir_set_accessed (pd, fte->upage, false);
-
-		/* Return current kpage to user pool,
-			 invalidate page tabe entry,
-			 and get new kpage */
-		kpage = pagedir_get_page (pd, fte->upage);
-		palloc_free_page (kpage);
-		pagedir_clear_page (pd, fte->upage);
-		ret_kpage = palloc_get_page (PAL_USER);
-
-		hash_delete (&frame_table, &fte->frame_elem);
-		free (fte);
-	} else if (access_dirty != NULL) {
-		/* Finally, evict accessed, dirty */
-		fte = list_entry (access_dirty, struct frame_table_entry, lru_elem);
-		list_remove (access_dirty);
-
-		/* Save this user page to swap */
-		spte = sup_lookup (fte->upage, &cur->page_table);
-		change_sup_data_location (spte, SWAP_FILE);
-
-		/* Clear dirty and access bit */
-		pagedir_set_dirty (pd, fte->upage, false);
-		pagedir_set_accessed (pd, fte->upage, false);
-
-		/* Return current kpage to user pool,
-			 invalidate page tabe entry,
-			 and get new kpage */
-		kpage = pagedir_get_page (pd, fte->upage);
-		palloc_free_page (kpage);
-		pagedir_clear_page (pd, fte->upage);
-		ret_kpage = palloc_get_page (PAL_USER);
-
-		hash_delete (&frame_table, &fte->frame_elem);
-		free (fte);
-	} else {
-		printf("PANIC! NOTHING TO EVICT!!!\n");
-		ret_kpage = NULL;
-	}
-
-	lock_release (&frame_lock);
-
-	return ret_kpage;
+	return NULL;
 }
