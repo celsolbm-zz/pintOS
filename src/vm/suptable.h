@@ -46,10 +46,10 @@ bool stack_growth (void *);
 		printf ("writable: %s\n", (spte->writable == true) ?	\
 						"TRUE" : "FALSE");														\
 		printf ("type: %s\n", (spte->type == FILE_DATA) ?			\
-					 "FILE_DATA"	: (spte->type == SWAP_FILE) ?			\
-					 "SWAP_FILE"	: (spte->type == ZERO_PAGE) ?			\
-					 "ZERO_PAGE"	: (spte->type == PAGE_TABLE) ?		\
-					 "PAGE_TABLE" : "STACK_PAGE");									\
+					 "FILE_DATA" : (spte->type == SWAP_FILE) ?			\
+					 "SWAP_FILE" : "PAGE_TABLE");										\
+		printf ("allocated: %s\n", (spte->alloced == true) ?	\
+				    "TRUE" : "FALSE");														\
 		printf ("=== END SUP PAGE ENTRY DUMP ===\n\n");				\
 	} while (0)
 

@@ -18,6 +18,7 @@
 
 static void syscall_handler (struct intr_frame *);
 static int child_number = 0;
+
 /*
  * Helper functions
  */
@@ -266,6 +267,7 @@ read (int fd, void *buffer, unsigned size)
   }
   ret = file_read (finfo->file, buffer, size);
   lock_release (&filesys_lock);
+
   return ret;
 }
 /*----------------------------------------------------------------------------*/

@@ -33,12 +33,11 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 		kpage = evict_frame_entry (pal_flag);
 		if (kpage == NULL) {
 			ASSERT (0);
-		} else {
-			lock_release (&frame_lock);
 		}
 	}
 
-	lock_acquire (&frame_lock);
+	if (!lock_held_by_current_thread (&frame_lock))
+		lock_acquire (&frame_lock);
 
 	new_fte = malloc (sizeof(struct frame_table_entry));
 	if (new_fte == NULL) {
@@ -51,7 +50,6 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 	new_fte->owner = thread_current ();
 
 	list_push_back (&frame_table, &new_fte->frame_elem);
-
 	lock_release (&frame_lock);
 
 	return new_fte;
@@ -87,6 +85,7 @@ evict_frame_entry (enum palloc_flags pal_flag)
 			if (pagedir_is_dirty (fte->owner->pagedir, fte->spte->upage))	{
 				/* Evict this entry (not accessed, dirty), move to swap */
 				// printf ("(evict_frame_entry) VICTIM FOUND!!!\n");
+				// DUMP_FRAME_TABLE_ENTRY (fte);
 				change_sup_data_location (fte->spte, SWAP_FILE);
 				list_remove (&fte->frame_elem);
 				pagedir_clear_page (fte->owner->pagedir, fte->spte->upage);

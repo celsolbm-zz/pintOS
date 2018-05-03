@@ -191,11 +191,14 @@ lock_init (struct lock *lock)
    we need to sleep. */
 void
 lock_acquire (struct lock *lock)
-{ struct thread *cur = thread_current();
+{
+	struct thread *cur = thread_current();
+
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-list_push_back (&cur->holding_lock, &lock->holding_elem);
+
+	list_push_back (&cur->holding_lock, &lock->holding_elem);
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 }

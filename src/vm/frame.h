@@ -21,8 +21,8 @@ void free_user_frame (struct frame_table_entry *);
 	do {																										\
 		printf ("=== FRAME TABLE ENTRY DUMP ===\n");					\
 		printf ("kpage: %p\n", fte->kpage);										\
-		DUMP_SUP_PAGE_ENTRY(fte->spte);												\
 		printf ("owner thread: %s\n", fte->owner->name);			\
+		DUMP_SUP_PAGE_ENTRY(fte->spte);												\
 		printf ("=== END FRAME TABLE ENTRY DUMP ===\n\n");		\
 	} while (0)
 

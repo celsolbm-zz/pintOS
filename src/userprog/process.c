@@ -201,7 +201,9 @@ process_exit (void)
   uint32_t *pd;
 
   /* Close executable and destroy file list */
-  lock_acquire (&filesys_lock);
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
+
   destroy_file_list ();
   if (cur->executable)
     file_close (cur->executable);
