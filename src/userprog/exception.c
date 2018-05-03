@@ -151,20 +151,19 @@ page_fault (struct intr_frame *f)
 	beta = new_addr + 0x200;
 	new_addr_2 = new_addr - PGSIZE;
 
->>>>>>> 194cc7b671335f6312b428dbf0f065829f970dd7
 	printf("\n the fault address was: %p ", (void *)fault_addr);  
 	printf("\n the SHIFTED fault address was: %p ", (void *)new_addr); 
 	printf("\n the SUBTRACTED fault address is: %p", (void *)new_addr_2); 
 	printf("\n beta is %p  \n",beta);
 #endif
 
-	intr_enable ();
-	
 	//I SHIFTED THE INTR TO BEFORE
+///////// CELSO MODS END HERE
+
 	/* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
+	intr_enable ();
 
-///////// CELSO MODS END HERE
   /* Count page faults. */
   page_fault_cnt++;
 

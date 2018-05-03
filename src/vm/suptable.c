@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-struct lock sup_lock;
+static struct lock sup_lock;	/* Lock for accessing sup page table */
 
 /*----------------------------------------------------------------------------*/
 static inline unsigned
@@ -36,6 +36,7 @@ page_less (const struct hash_elem *sa_, const struct hash_elem *sb_,
   return sa->upage < sb->upage;
 }
 /*----------------------------------------------------------------------------*/
+/* Initialize supplemental page table */
 bool
 init_sup_table (void)
 {
@@ -48,6 +49,7 @@ init_sup_table (void)
 	return result;
 }
 /*----------------------------------------------------------------------------*/
+/* Change sup page table entry's type to TYPE argument */
 bool
 change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 {
@@ -79,8 +81,8 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 					pal_flag |= PAL_ZERO;
 
 				fte = get_user_frame (spte, pal_flag);
-				if ((uint32_t)file_read_at (spte->file, fte->kpage,
-						 spte->read_bytes, spte->file_ofs) != spte->read_bytes) {
+				if (file_read_at (spte->file, fte->kpage,
+						spte->read_bytes, spte->file_ofs) != (off_t)spte->read_bytes) {
 					free_user_frame (fte);
 					return false;
 				}
@@ -90,7 +92,8 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 					free_user_frame (fte);
 					return false;
 				}
-				//printf ("INSTALL PAGE SUCCESS! upage: %p, kpage: %p\n", spte->upage, fte->kpage);
+				// printf ("INSTALL PAGE SUCCESS! upage: %p, kpage: %p\n",
+				//				 spte->upage, fte->kpage);
 			} else if (spte->type == SWAP_FILE) {
 				/* Read swap and set frame according to read_bytes and zero_bytes */
 				/* XXX: swap_in like function may be called here */
@@ -104,6 +107,7 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 	return true;
 }
 /*----------------------------------------------------------------------------*/
+/* Look up sup page table using UPAGE address */
 struct sup_page_entry *
 sup_lookup (void *upage)
 {
@@ -118,6 +122,7 @@ sup_lookup (void *upage)
 											 (NULL);
 }
 /*----------------------------------------------------------------------------*/
+/* Create and save new sup apge table entry */
 struct sup_page_entry *
 save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 							 uint32_t z_bytes, bool writable, enum type_data type)
@@ -148,6 +153,7 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	return spte;
 }
 /*----------------------------------------------------------------------------*/
+/* Allocate new stack page at NEW_STACK_PTR address */
 bool
 stack_growth (void *new_stack_ptr)
 {

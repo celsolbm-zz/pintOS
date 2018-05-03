@@ -1,10 +1,16 @@
 #include "vm/frame.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "vm/suptable.h"
 #include <stdio.h>
+
+static void *evict_frame_entry (enum palloc_flags);
+
+static struct list frame_table;		/* List for frame table entry */
+static struct lock frame_lock;		/* Lock for accessing frame table */
 
 /*----------------------------------------------------------------------------*/
 /* Initialize frame table */
@@ -51,6 +57,7 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 	return new_fte;
 }
 /*----------------------------------------------------------------------------*/
+/* Remove frame from frame table and user pool */
 void
 free_user_frame (struct frame_table_entry *fte)
 {
@@ -61,18 +68,14 @@ free_user_frame (struct frame_table_entry *fte)
 	lock_release (&frame_lock);
 }
 /*----------------------------------------------------------------------------*/
-/* Evict one frame table entry and return evicted entry's kernel virtual addr
-   to the calling function */
-void *
+/* Evict one frame table entry and return new user pool page */ 
+static void *
 evict_frame_entry (enum palloc_flags pal_flag)
 {
 	struct list_elem *e;
 	struct frame_table_entry *fte;
 
-#if 0
-	printf ("EVICT CALLED!!!\n");
-#endif
-
+	/* Find eviction entry until victim is found */
 	lock_acquire (&frame_lock);
 	e = list_begin (&frame_table);
 	while (1) {
@@ -82,8 +85,8 @@ evict_frame_entry (enum palloc_flags pal_flag)
 			pagedir_set_accessed (fte->owner->pagedir, fte->spte->upage, false);
 		} else {
 			if (pagedir_is_dirty (fte->owner->pagedir, fte->spte->upage))	{
-				/* Evict this entry (not accessed, dirty), move to swap, except for
-				   stack page */
+				/* Evict this entry (not accessed, dirty), move to swap */
+				// printf ("(evict_frame_entry) VICTIM FOUND!!!\n");
 				change_sup_data_location (fte->spte, SWAP_FILE);
 				list_remove (&fte->frame_elem);
 				pagedir_clear_page (fte->owner->pagedir, fte->spte->upage);

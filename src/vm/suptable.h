@@ -20,11 +20,10 @@ struct sup_page_entry {
 	void *upage;									/* user page addr of this entry */
 	struct file *file;						/* associated file if any */
 	off_t file_ofs;								/* file position for this spte */
-	uint32_t read_bytes;
-	uint32_t zero_bytes;
-	bool writable;
+	uint32_t read_bytes;					/* read bytes from file for this page */
+	uint32_t zero_bytes;					/* zero bytes from file for this page */
+	bool writable;								/* whether this page is writable */
 	enum type_data type;					/* data location of this entry */
-
 	bool alloced;									/* whether this entry has allocated frame */
 	struct hash_elem page_elem;		/* hash table element */
 };
