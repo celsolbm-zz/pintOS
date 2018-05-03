@@ -6,7 +6,7 @@
 #include "vm/suptable.h"
 #include <stdio.h>
 
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 /* Initialize frame table */
 void
 init_frame_table (void)
@@ -14,7 +14,7 @@ init_frame_table (void)
 	lock_init (&frame_lock);
 	list_init (&frame_table);
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 /* Allocate a frame from user pool and return kernel virtual address */
 struct frame_table_entry *
 get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
@@ -50,7 +50,7 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 
 	return new_fte;
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 void
 free_user_frame (struct frame_table_entry *fte)
 {
@@ -60,7 +60,7 @@ free_user_frame (struct frame_table_entry *fte)
 	free (fte);
 	lock_release (&frame_lock);
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 /* Evict one frame table entry and return evicted entry's kernel virtual addr
    to the calling function */
 void *
@@ -100,3 +100,4 @@ evict_frame_entry (enum palloc_flags pal_flag)
 
 	return NULL;
 }
+/*----------------------------------------------------------------------------*/

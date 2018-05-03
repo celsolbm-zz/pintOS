@@ -11,7 +11,7 @@
 
 struct lock sup_lock;
 
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 static inline unsigned
 page_hash (const struct hash_elem *po_, void *aux UNUSED)
 {
@@ -20,7 +20,7 @@ page_hash (const struct hash_elem *po_, void *aux UNUSED)
 																								page_elem);
   return hash_bytes (&po->upage, sizeof po->upage);
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 /* Returns true if page a precedes page b. */
 static inline bool
 page_less (const struct hash_elem *sa_, const struct hash_elem *sb_,
@@ -35,7 +35,7 @@ page_less (const struct hash_elem *sa_, const struct hash_elem *sb_,
 
   return sa->upage < sb->upage;
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 bool
 init_sup_table (void)
 {
@@ -47,7 +47,7 @@ init_sup_table (void)
 	
 	return result;
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 bool
 change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 {
@@ -103,7 +103,7 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 
 	return true;
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 struct sup_page_entry *
 sup_lookup (void *upage)
 {
@@ -117,7 +117,7 @@ sup_lookup (void *upage)
 	return (e != NULL) ? (hash_entry (e, struct sup_page_entry, page_elem)) :
 											 (NULL);
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 struct sup_page_entry *
 save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 							 uint32_t z_bytes, bool writable, enum type_data type)
@@ -147,7 +147,7 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 
 	return spte;
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 bool
 stack_growth (void *new_stack_ptr)
 {
@@ -178,4 +178,4 @@ stack_growth (void *new_stack_ptr)
 
 	return success;
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
