@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
-#include "vm/frame.h"
 #include "vm/suptable.h"
 #include "vm/swaptable.h"
 
@@ -436,7 +435,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
     goto done;
 
 #if 0 /* debug */
-  printf ("(load) hex dump start\n");
+  printf ("(load) hex dump for stack start\n");
   hex_dump (0, (const void *)(*esp), 100, true);
 #endif
 
@@ -565,23 +564,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, const char *command, char **save_ptr) 
 {
-  uint8_t *kpage;
-	struct sup_page_entry *spte;
-	struct frame_table_entry *fte;
   bool success = false;
 
 	/* First, create supplemental page table entry for stack page */
-	spte = save_sup_page (((void *)PHYS_BASE) - PGSIZE, NULL,
-												0, 0, 0, true, STACK_PAGE);
-	fte = get_user_frame (spte, PAL_USER | PAL_ZERO);
-	kpage = fte->kpage;
-
-	success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-	if (!success) {
-		free_user_frame (fte);
+	success = stack_growth (((void *)PHYS_BASE) - PGSIZE);
+	if (!success)
 		return success;
-	}
-	
+
 	*esp = PHYS_BASE;
 
   /* Setup stack */

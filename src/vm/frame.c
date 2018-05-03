@@ -54,9 +54,11 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 void
 free_user_frame (struct frame_table_entry *fte)
 {
+	lock_acquire (&frame_lock);
 	list_remove (&fte->frame_elem);
 	palloc_free_page (fte->kpage);
 	free (fte);
+	lock_release (&frame_lock);
 }
 /******************************************************************************/
 /* Evict one frame table entry and return evicted entry's kernel virtual addr
@@ -79,8 +81,7 @@ evict_frame_entry (enum palloc_flags pal_flag)
 		if (pagedir_is_accessed (fte->owner->pagedir, fte->spte->upage)) {
 			pagedir_set_accessed (fte->owner->pagedir, fte->spte->upage, false);
 		} else {
-			if (pagedir_is_dirty (fte->owner->pagedir, fte->spte->upage) &&
-					fte->spte->type != STACK_PAGE)	{
+			if (pagedir_is_dirty (fte->owner->pagedir, fte->spte->upage))	{
 				/* Evict this entry (not accessed, dirty), move to swap, except for
 				   stack page */
 				change_sup_data_location (fte->spte, SWAP_FILE);

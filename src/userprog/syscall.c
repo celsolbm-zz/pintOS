@@ -21,18 +21,19 @@ static int child_number = 0;
 /*
  * Helper functions
  */
-static void check_user_ptr (const void *uptr);
-static void check_user_string (const char *ustr);
-static void check_user_buffer (const void *uptr, unsigned size);
+static void check_user_ptr (const void *uptr, void *esp);
+static void check_user_string (const char *ustr, void *esp);
+static void check_user_buffer (const void *uptr, unsigned size, void *esp);
 static void get_sysarg (struct intr_frame *f, int *sysarg, int arg_num);
 
+/******************************************************************************/
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init (&filesys_lock);
 }
-
+/******************************************************************************/
 static void
 syscall_handler (struct intr_frame *f) 
 {
@@ -40,7 +41,7 @@ syscall_handler (struct intr_frame *f)
   int sysarg[MAX_ARG];
 
 
-  check_user_ptr ((const void *)f->esp);
+  check_user_ptr ((const void *)f->esp, f->esp);
 	sysno = *(int *)f->esp;
   switch (sysno) {
     case SYS_HALT:
@@ -54,7 +55,7 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_EXEC:
       get_sysarg (f, &sysarg[0], 1);
-			check_user_string ((const char *)sysarg[0]);
+			check_user_string ((const char *)sysarg[0], f->esp);
       f->eax = exec ((const char *)sysarg[0]);
       break;
 
@@ -65,19 +66,19 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_CREATE:
       get_sysarg (f, &sysarg[0], 2);
-			check_user_string ((const char *)sysarg[0]);
+			check_user_string ((const char *)sysarg[0], f->esp);
       f->eax = create ((const char *)sysarg[0], (unsigned)sysarg[1]);
       break;
 
     case SYS_REMOVE:
       get_sysarg (f, &sysarg[0], 1);
-			check_user_string ((const char *)sysarg[0]);
+			check_user_string ((const char *)sysarg[0], f->esp);
       f->eax = remove ((const char *)sysarg[0]);
       break;
 
     case SYS_OPEN:
       get_sysarg (f, &sysarg[0], 1);
-			check_user_string ((const char *)sysarg[0]);
+			check_user_string ((const char *)sysarg[0], f->esp);
       f->eax = open ((const char *)sysarg[0]);
       break;
 
@@ -88,13 +89,13 @@ syscall_handler (struct intr_frame *f)
 
     case SYS_READ:
       get_sysarg (f, &sysarg[0], 3);
-      check_user_buffer ((const void *)sysarg[1], (unsigned)sysarg[2]);
+      check_user_buffer ((const void *)sysarg[1], (unsigned)sysarg[2], f->esp);
       f->eax = read (sysarg[0], (void *)sysarg[1], (unsigned)sysarg[2]);
       break;
 
     case SYS_WRITE:
       get_sysarg (f, &sysarg[0], 3);
-      check_user_buffer ((const void *)sysarg[1], (unsigned)sysarg[2]);
+      check_user_buffer ((const void *)sysarg[1], (unsigned)sysarg[2], f->esp);
       f->eax = write (sysarg[0], (const void *)sysarg[1], (unsigned)sysarg[2]);
       break;
 
@@ -114,17 +115,17 @@ syscall_handler (struct intr_frame *f)
       break;
   }
 }
-
+/******************************************************************************/
 /*
  * System call
  */
-
+/******************************************************************************/
 void
 halt (void)
 {
   shutdown_power_off ();
 }
-
+/******************************************************************************/
 void
 exit (int status)
 {
@@ -136,7 +137,7 @@ exit (int status)
   printf ("%s: exit(%d)\n", cur->name, status);
   thread_exit ();
 }
-
+/******************************************************************************/
 pid_t
 exec (const char *cmd_line)
 {
@@ -163,13 +164,13 @@ exec (const char *cmd_line)
 
   return child_pid;
 }
-
+/******************************************************************************/
 int
 wait (pid_t pid)
 {
   return process_wait (pid);
 }
-
+/******************************************************************************/
 bool
 create (const char *file, unsigned initial_size)
 {
@@ -177,12 +178,11 @@ create (const char *file, unsigned initial_size)
 
   lock_acquire (&filesys_lock);
   ret = filesys_create (file, (off_t)initial_size);
-	// printf ("CREATE RET: %s\n", (ret == true) ? "TRUE" : "FALSE");
   lock_release (&filesys_lock);
 
   return ret;
 }
-
+/******************************************************************************/
 bool
 remove (const char *file)
 {
@@ -194,7 +194,7 @@ remove (const char *file)
 
   return ret;
 }
-
+/******************************************************************************/
 int
 open (const char *file)
 {
@@ -223,7 +223,7 @@ open (const char *file)
 
   return finfo->fd;
 }
-
+/******************************************************************************/
 int
 filesize (int fd)
 {
@@ -241,7 +241,7 @@ filesize (int fd)
 
   return ret;
 }
-
+/******************************************************************************/
 int
 read (int fd, void *buffer, unsigned size)
 {
@@ -250,6 +250,7 @@ read (int fd, void *buffer, unsigned size)
   if (fd == STDIN_FILENO) {
     char *bufptr = (char *)buffer;
     unsigned i;
+
     for (i = 0; i < size; i++) {
       *bufptr = input_getc ();
       bufptr++;
@@ -267,7 +268,7 @@ read (int fd, void *buffer, unsigned size)
   lock_release (&filesys_lock);
   return ret;
 }
-
+/******************************************************************************/
 int
 write (int fd, const void *buffer, unsigned size)
 {
@@ -291,7 +292,7 @@ write (int fd, const void *buffer, unsigned size)
 
   return ret;
 }
-
+/******************************************************************************/
 void
 seek (int fd, unsigned position)
 {
@@ -307,7 +308,7 @@ seek (int fd, unsigned position)
   file_seek (finfo->file, (off_t)position);
   lock_release (&filesys_lock);
 }
-
+/******************************************************************************/
 unsigned
 tell (int fd)
 {
@@ -326,7 +327,7 @@ tell (int fd)
 
   return ret;
 }
-
+/******************************************************************************/
 void
 close (int fd)
 {
@@ -345,14 +346,13 @@ close (int fd)
   lock_release (&filesys_lock);
 }
 /******************************************************************************/
-
 /* 
  * Helper functions
  */
 /******************************************************************************/
 /* Check whether user-provided pointer UPTR is in the valid address space */
 static void
-check_user_ptr (const void *uptr)
+check_user_ptr (const void *uptr, void *esp)
 {
 	bool success;
 	struct sup_page_entry *spte;
@@ -368,12 +368,19 @@ check_user_ptr (const void *uptr)
 		// DUMP_SUP_PAGE_ENTRY (spte);
 		if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE))
 			success = change_sup_data_location (spte, PAGE_TABLE);
-		else if ((spte->type == STACK_PAGE) || (spte->type == PAGE_TABLE))
+		else if (spte->type == PAGE_TABLE)
 			success = true;
+	} else if ((esp - STACK_HEURISTIC) < uptr) {
+#if 0
+		printf ("(check_user_ptr) STACK GROWTH START!\n");
+		printf ("(check_user_ptr) USER ADDRESS: %p\n", uptr);
+		printf ("(check_user_ptr) ESP: %p\n", esp);
+#endif
+		success = stack_growth ((void *)uptr);
 	}
 
-	// printf("AFTER SUP_LOOKUP!, uptr: %p, success: %s, spte: %s\n", uptr,
-	// 		    (success == true) ? "TRUE" : "FALSE",
+	// printf ("(check_user_ptr) AFTER SUP_LOOKUP!, uptr: %p, success: %s, "
+	// 			 "spte: %s\n", uptr, (success == true) ? "TRUE" : "FALSE",
 	// 				(spte == NULL) ? "NOT FOUND" : "FOUND");
 
 	if (!success)
@@ -382,25 +389,25 @@ check_user_ptr (const void *uptr)
 /******************************************************************************/
 /* Check whether user-provided string is in the valid address space */
 static void
-check_user_string (const char *ustr)
+check_user_string (const char *ustr, void *esp)
 {
 	char *str = (char *)ustr;
 
 	while (*str != 0) {
-		check_user_ptr ((const void *)str);
+		check_user_ptr ((const void *)str, esp);
 		str++;
 	}
 }
 /******************************************************************************/
 /* Check whether user-provided buffer UPTR is in the valid address space */
 static void
-check_user_buffer (const void *uptr, unsigned size)
+check_user_buffer (const void *uptr, unsigned size, void *esp)
 {
   char *ptr = (char *)uptr;
   unsigned i;
 
   for (i = 0; i < size; i++) {
-    check_user_ptr ((const void *)ptr);
+    check_user_ptr ((const void *)ptr, esp);
     ptr++;
   }
 }
@@ -414,7 +421,7 @@ get_sysarg (struct intr_frame *f, int *sysarg, int arg_num)
 
   for (i = 0; i < arg_num; i++) {
     ptr = (int *)f->esp + i + 1; /* +1 for syscall number */
-    check_user_ptr ((const void *)ptr);
+    check_user_ptr ((const void *)ptr, f->esp);
     sysarg[i] = *ptr;
 	}
 }

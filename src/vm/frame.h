@@ -22,4 +22,13 @@ struct frame_table_entry *get_user_frame (struct sup_page_entry *,
 void free_user_frame (struct frame_table_entry *);
 void *evict_frame_entry (enum palloc_flags);
 
+#define DUMP_FRAME_TABLE_ENTRY(fte)												\
+	do {																										\
+		printf ("=== FRAME TABLE ENTRY DUMP ===\n");					\
+		printf ("kpage: %p\n", fte->kpage);										\
+		DUMP_SUP_PAGE_ENTRY(fte->spte);												\
+		printf ("owner thread: %s\n", fte->owner->name);			\
+		printf ("=== END FRAME TABLE ENTRY DUMP ===\n\n");		\
+	} while (0)
+
 #endif /* _VM_FRAME_H */

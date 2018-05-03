@@ -2,6 +2,7 @@
 #include "threads/thread.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "threads/vaddr.h"
 #include "userprog/process.h"
 #include "vm/swaptable.h"
 #include "vm/frame.h"
@@ -55,8 +56,6 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 
 	switch (type) {
 		case FILE_DATA:
-		case ZERO_PAGE:
-		case STACK_PAGE:
 			/* XXX: This case may not necessary */
 			break;
 
@@ -147,5 +146,36 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	lock_release (&sup_lock);
 
 	return spte;
+}
+/******************************************************************************/
+bool
+stack_growth (void *new_stack_ptr)
+{
+	bool success;
+	void *kpage;
+	struct sup_page_entry *spte;
+	struct frame_table_entry *fte;
+
+	new_stack_ptr = pg_round_down (new_stack_ptr);
+	// printf ("(stack_growth) PHYS_BASE - new_stack_ptr: %u, MAX_STACK_SIZE: %u\n",
+	// 				(uint32_t)(PHYS_BASE - new_stack_ptr), MAX_STACK_SIZE);
+	if ((uint32_t)(PHYS_BASE - new_stack_ptr) > MAX_STACK_SIZE)
+		return false;
+
+	spte = save_sup_page (new_stack_ptr, NULL, 0, 0, 0, true, PAGE_TABLE);
+	fte = get_user_frame (spte, PAL_USER | PAL_ZERO);
+	kpage = fte->kpage;
+
+	// printf ("(stack_growth) NEW_STACK_PTR: %p\n", new_stack_ptr);
+	success = install_page (new_stack_ptr, kpage, true);
+	if (!success) {
+		free_user_frame (fte);
+		return success;
+	}
+	
+	// printf ("(stack_growth) INSTALL PAGE SUCCESS! upage: %p, kpage: %p\n",
+	//				 spte->upage, fte->kpage);
+
+	return success;
 }
 /******************************************************************************/
