@@ -26,6 +26,7 @@ struct sup_page_entry {
 	enum type_data type;					/* data location of this entry */
 	bool alloced;									/* whether this entry has allocated frame */
 	struct hash_elem page_elem;		/* hash table element */
+	size_t sw_addr;               /* offset address of when the data is moved to the swap table */
 };
 
 bool init_sup_table (void);

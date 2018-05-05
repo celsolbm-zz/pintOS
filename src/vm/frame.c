@@ -59,7 +59,9 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 void
 free_user_frame (struct frame_table_entry *fte)
 {
-	lock_acquire (&frame_lock);
+
+	if (!lock_held_by_current_thread (&frame_lock))
+		lock_acquire (&frame_lock);
 	list_remove (&fte->frame_elem);
 	palloc_free_page (fte->kpage);
 	free (fte);
@@ -74,7 +76,10 @@ evict_frame_entry (enum palloc_flags pal_flag)
 	struct frame_table_entry *fte;
 
 	/* Find eviction entry until victim is found */
-	lock_acquire (&frame_lock);
+	
+	if (!lock_held_by_current_thread (&frame_lock))
+		lock_acquire (&frame_lock);
+
 	e = list_begin (&frame_table);
 	while (1) {
 		fte = list_entry (e, struct frame_table_entry, frame_elem);

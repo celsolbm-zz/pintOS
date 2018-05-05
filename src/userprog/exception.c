@@ -10,7 +10,7 @@
 
 #include "vm/suptable.h"
 #include "vm/swaptable.h"
-
+#include "devices/block.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -180,7 +180,15 @@ page_fault (struct intr_frame *f)
 			ASSERT (spte->type != PAGE_TABLE);
 			// DUMP_SUP_PAGE_ENTRY (spte);
 			if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE))
-				success = change_sup_data_location (spte, PAGE_TABLE);
+			{	success = change_sup_data_location (spte, PAGE_TABLE); //this is the original
+												
+				//spte->sw_addr=get_swap_address(spte);
+				//swap_load(spte);
+				//printf(" \n the return from get swap address is %d \n",spte->sw_addr);
+			  //block_print_stats();
+					
+				
+			}
 		} else if ((f->esp - STACK_HEURISTIC) < fault_addr) {
 #if 0
 			printf ("(page_fault) STACK GROWTH START!\n");
