@@ -172,7 +172,7 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
   
 	
-	printf("\n z and r bytes %d !!\n  ",r_bytes+z_bytes);
+	printf("\n z bytes %d !!\n  ",z_bytes);
 	
 	
 	hash_insert(&cur->page_table, &spte->page_elem);
