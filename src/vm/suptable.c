@@ -163,7 +163,7 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->writable = writable;
 	spte->type = type;
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
-  printf(" \n value of upage is %p", upage);	
+  //printf(" \n value of upage is %p", upage);	
 	hash_insert (&cur->page_table, &spte->page_elem);
 	lock_release (&sup_lock);
 

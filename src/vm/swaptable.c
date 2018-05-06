@@ -81,7 +81,7 @@ init_swap_table (void)
 void 
 swap_out (struct frame_table_entry *fte)
 {
-	printf(" \n does swap gets called?");
+	//printf(" \n does swap gets called?");
 	struct sup_page_entry *spte;
 	void *kpage;
 	size_t i;
