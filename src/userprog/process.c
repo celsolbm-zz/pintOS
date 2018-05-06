@@ -341,7 +341,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
-
+if(!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
 
   /* Open executable file. */

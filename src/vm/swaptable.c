@@ -7,7 +7,9 @@
 #include "lib/kernel/bitmap.h"
 #include "suptable.h"
 #include "frame.h"
+#include "threads/vaddr.h"
 #include <stdio.h>
+#include <string.h>
 #define SECTOR_SIZE 512
 
 
@@ -87,7 +89,6 @@ swap_load (struct sup_page_entry *swap)
 
 
 	uint32_t sector = swap->sw_addr;
-printf(" \n the swapp address value is %d \n",swap->sw_addr);
 	struct thread *cur;
 	void *kaddr;
 	int loops, index;
@@ -99,10 +100,8 @@ printf(" \n the swapp address value is %d \n",swap->sw_addr);
 
 	cur = thread_current ();
 	kaddr = pagedir_get_page (cur->pagedir, swap->upage);
-	
+	//kaddr=swap->upage;
 	loops = DIV_ROUND_UP(swap->read_bytes+swap->zero_bytes,SECTOR_SIZE);
-printf(" \n inside the load and loops is %d \n ", loops);
-
 	index = 0;
 	while (index < loops) {
 		block_write (block_get_role(BLOCK_SWAP), sector, kaddr); 
@@ -123,23 +122,18 @@ swap_read (struct sup_page_entry *swap, struct frame_table_entry *fte)
 	int loops = DIV_ROUND_UP(swap->read_bytes+swap->zero_bytes,SECTOR_SIZE);
 	int index = 0;
 	int sector = swap->sw_addr;
-	printf(" \n INSIDE THE SWAP READ, and loop is %d \n",swap->read_bytes+swap->zero_bytes);
-	printf(" \n INSIDE THE SWAP READ, and the swap addr is %d \n",swap->sw_addr);
-  
-
 	if (!lock_held_by_current_thread(&sw_lock))
 		lock_acquire(&sw_lock);	
-
 	void *paddr=fte->kpage;
+	//void *paddr=swap->upage;
 	while (index < loops) {
 		block_read (block_get_role(BLOCK_SWAP), sector, paddr);
 		paddr += 0x200;
 		sector++;
 		index++;
 	}
-	printf("\n pass the read! \n");
+	memset(fte->kpage+swap->read_bytes,0,swap->zero_bytes);
   bitmap_set_multiple(sw_table,swap->sw_addr,(size_t) loops,false);
-	printf("\n pass the bitmap set \n");
 	lock_release(&sw_lock);
 }
 

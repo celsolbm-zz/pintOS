@@ -176,7 +176,7 @@ bool
 create (const char *file, unsigned initial_size)
 {
   bool ret;
-
+if (!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
   ret = filesys_create (file, (off_t)initial_size);
   lock_release (&filesys_lock);
@@ -188,7 +188,7 @@ bool
 remove (const char *file)
 {
   bool ret;
-
+if (!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
   ret = filesys_remove (file);
   lock_release (&filesys_lock);
@@ -202,7 +202,7 @@ open (const char *file)
   struct thread *cur = thread_current ();
   struct file_info *finfo;
   struct file *temp_file;
-
+if (!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
   temp_file = filesys_open (file);
   if (temp_file == NULL) {
@@ -230,7 +230,7 @@ filesize (int fd)
 {
   int ret;
   struct file_info *finfo;
-
+if (!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
   finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -258,9 +258,10 @@ read (int fd, void *buffer, unsigned size)
     }
     return (int)size;
   }
-
-  lock_acquire (&filesys_lock);
-  finfo = get_file_info (fd);
+  if (!lock_held_by_current_thread(&filesys_lock))
+		lock_acquire (&filesys_lock);
+  
+	finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
     return -1;
@@ -281,7 +282,7 @@ write (int fd, const void *buffer, unsigned size)
     putbuf (buffer, (size_t)size);
     return (int)size;
   }
-
+if (!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
   finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -299,7 +300,7 @@ void
 seek (int fd, unsigned position)
 {
   struct file_info *finfo;
-
+if (!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
   finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -316,7 +317,7 @@ tell (int fd)
 {
   struct file_info *finfo;
   unsigned ret;
-
+if (!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
   finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -334,7 +335,7 @@ void
 close (int fd)
 {
   struct file_info *finfo;
-
+if (!lock_held_by_current_thread(&filesys_lock))
   lock_acquire (&filesys_lock);
   finfo = get_file_info (fd);
   if (finfo == NULL) {

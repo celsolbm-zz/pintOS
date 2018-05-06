@@ -63,13 +63,11 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 
 		case SWAP_FILE:
 			/* Move to swap space */
-			printf(" \n call from here? \n ");
 			spte->sw_addr=get_swap_address(spte);
 			swap_load(spte);
 
 			ASSERT (spte->alloced == true);
 			/* XXX: Call swap_out like function that move this page to swap */
-			//printf(" \n finishes the swap? \n");
 			spte->alloced = false;
 			break;
 
@@ -99,25 +97,20 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 				//				 spte->upage, fte->kpage);
 				spte->type = PAGE_TABLE;
 			} else if (spte->type == SWAP_FILE) {
-				printf("\n enter the swap read? \n");
 				block_print_stats();
 				pal_flag = PAL_USER;
 				if (spte->read_bytes == 0)
 					pal_flag |= PAL_ZERO;
-			  printf("calling get user frame");	
 				fte = get_user_frame (spte, pal_flag);			
 				swap_read(spte,fte);
-				printf("\n just finished the swap_read() \n");
 
 				if (!install_page (spte->upage, fte->kpage, spte->writable)) {
-					printf("\n does it fail inside installPage? \n");
 					free_user_frame (fte);
 					return false;
 				}
 
 				
 				spte->type=PAGE_TABLE;
-				printf("\n finishes this shite \n");
 				block_print_stats();				
 				/* Read swap and set frame according to read_bytes and zero_bytes */
 				/* XXX: swap_in like function may be called here */
@@ -172,7 +165,6 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
   
 	
-	printf("\n z bytes %d !!\n  ",z_bytes);
 	
 	
 	hash_insert(&cur->page_table, &spte->page_elem);
