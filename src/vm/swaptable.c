@@ -81,6 +81,7 @@ init_swap_table (void)
 void 
 swap_out (struct frame_table_entry *fte)
 {
+	printf(" \n does swap gets called?");
 	struct sup_page_entry *spte;
 	void *kpage;
 	size_t i;
@@ -91,13 +92,11 @@ swap_out (struct frame_table_entry *fte)
 	kpage = fte->kpage;
 	spte->sw_addr = bitmap_scan_and_flip (sw_table, 0, SECTORS_PER_PAGE, false);
 	ASSERT (spte->sw_addr % SECTORS_PER_PAGE == 0);
-
 	for (i = 0; i < SECTORS_PER_PAGE; i++) {
 		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == true);
 		block_write (swap, spte->sw_addr + i,
 								 (uint8_t *)kpage + i * BLOCK_SECTOR_SIZE); 
 	}
-
 #if 0
 	if (spte->sw_addr == 0) {
 		printf ("\n ===== START SWAP_OUT =====\n");
@@ -120,8 +119,8 @@ swap_read (struct sup_page_entry *spte, struct frame_table_entry *fte)
 
 	kpage = fte->kpage;
 
-	//printf ("(swap_read) start sector: %zu start kpage: %p\n",
-	//				spte->sw_addr, kpage);
+	//printf ("(swap_read) start sector: %zu start upage: %p\n",
+	//				spte->sw_addr, spte->upage);
 	for (i = 0; i < SECTORS_PER_PAGE; i++) {
 		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == true);
 		block_read (swap, spte->sw_addr + i,
@@ -143,7 +142,7 @@ swap_read (struct sup_page_entry *spte, struct frame_table_entry *fte)
 		bitmap_flip (sw_table, spte->sw_addr + i);
 		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == false);
 	}
-
+//printf("\n finishes read? \n");
 	lock_release (&sw_lock);
 }
 /*----------------------------------------------------------------------------*/

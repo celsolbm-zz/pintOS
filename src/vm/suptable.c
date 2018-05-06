@@ -99,13 +99,13 @@ change_sup_data_location (struct sup_page_entry *spte,
 				//spte->type = PAGE_TABLE;
 			} else if (spte->type == SWAP_FILE) {
 				/* Read swap and set frame according to read_bytes and zero_bytes */
-
+				
 				//block_print_stats();
 				pal_flag = PAL_USER;
 				if (spte->read_bytes == 0)
 					pal_flag |= PAL_ZERO;
-
-				new_fte = get_user_frame (spte, pal_flag);			
+				new_fte = get_user_frame (spte, pal_flag);
+				//printf("\n just left get_user_frame \n ");
 				if (!install_page (spte->upage, new_fte->kpage, spte->writable)) {
 					free_user_frame (fte);
 					return false;
@@ -163,7 +163,7 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->writable = writable;
 	spte->type = type;
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
-	
+  printf(" \n value of upage is %p", upage);	
 	hash_insert (&cur->page_table, &spte->page_elem);
 	lock_release (&sup_lock);
 

@@ -180,8 +180,9 @@ page_fault (struct intr_frame *f)
 			ASSERT (spte->type != PAGE_TABLE);
 			// DUMP_SUP_PAGE_ENTRY (spte);
 			if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE)) {	
+				//printf(" \n about to enter page fault \n");
 				success = change_sup_data_location (spte, NULL, PAGE_TABLE); //this is the original
-												
+				//printf("\n returned to the page_fault and success is %d \n", success);								
 				//spte->sw_addr=get_swap_address(spte);
 				//swap_load(spte);
 				//printf(" \n the return from get swap address is %d \n",spte->sw_addr);
