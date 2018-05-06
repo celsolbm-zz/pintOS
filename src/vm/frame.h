@@ -3,6 +3,7 @@
 
 #include <hash.h>
 #include <list.h>
+#include "threads/thread.h"
 #include "threads/palloc.h"
 
 struct frame_table_entry {

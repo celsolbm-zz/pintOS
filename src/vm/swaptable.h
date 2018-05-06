@@ -1,12 +1,11 @@
 #ifndef _SWAPTABLE_H
 #define _SWAPTABLE_H
 
-#include <hash.h>
-#include "devices/block.h"
-#include "filesys/file.h"
-#include "lib/kernel/bitmap.h"
+#include <bitmap.h>
 #include "vm/suptable.h"
-#include "frame.h"
+#include "vm/frame.h"
+
+#if 0
 struct swap_entry
 {
 	struct hash_elem swap_elem;
@@ -22,29 +21,14 @@ struct swap_entry
 	bool writable;
 };
 struct hash swap_table;
-struct bitmap *sw_table;
-struct lock sw_lock;
-#if 0
-void 
-init_swap_table (void);
 
-struct 
-swap_entry *swap_lookup (void *);
-
-void 
-save_swap (void *, uint32_t, uint32_t, uint32_t, bool);
+void init_swap_table (void);
+struct swap_entry *swap_lookup (void *);
+void save_swap (void *, uint32_t, uint32_t, uint32_t, bool);
 #endif
 
-void 
-init_swap_table (void);
-
-void 
-swap_load (struct sup_page_entry *);
-
-void
-swap_read (struct sup_page_entry *, struct frame_table_entry *);
-
-size_t
-get_swap_address(struct sup_page_entry *);
+void init_swap_table (void);
+void swap_out (struct frame_table_entry *);
+void swap_read (struct sup_page_entry *, struct frame_table_entry *);
 
 #endif /* _SWAPTABLE */

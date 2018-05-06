@@ -361,7 +361,7 @@ check_user_ptr (const void *uptr, void *esp)
 	struct sup_page_entry *spte;
 	void *user_addr;
 
-  if (!is_user_vaddr(uptr) || (uptr < BOTTOM_USER_SPACE))
+  if (!is_user_vaddr (uptr) || (uptr < BOTTOM_USER_SPACE))
 		exit (-1);
 
 	success = false;
@@ -370,7 +370,7 @@ check_user_ptr (const void *uptr, void *esp)
 	if (spte != NULL) {
 		// DUMP_SUP_PAGE_ENTRY (spte);
 		if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE))
-			success = change_sup_data_location (spte, PAGE_TABLE);
+			success = change_sup_data_location (spte, NULL, PAGE_TABLE);
 		else if (spte->type == PAGE_TABLE)
 			success = true;
 	} else if ((esp - STACK_HEURISTIC) < uptr) {

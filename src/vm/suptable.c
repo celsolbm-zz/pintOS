@@ -5,7 +5,6 @@
 #include "threads/vaddr.h"
 #include "userprog/process.h"
 #include "vm/swaptable.h"
-#include "vm/frame.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -51,9 +50,10 @@ init_sup_table (void)
 /*----------------------------------------------------------------------------*/
 /* Change sup page table entry's type to TYPE argument */
 bool
-change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
+change_sup_data_location (struct sup_page_entry *spte,
+													struct frame_table_entry *fte, enum type_data type)
 {
-	struct frame_table_entry *fte;
+	struct frame_table_entry *new_fte;
 	enum palloc_flags pal_flag;
 
 	switch (type) {
@@ -63,16 +63,16 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 
 		case SWAP_FILE:
 			/* Move to swap space */
-			spte->sw_addr=get_swap_address(spte);
-			swap_load(spte);
-
+			ASSERT (fte != NULL);
 			ASSERT (spte->alloced == true);
-			/* XXX: Call swap_out like function that move this page to swap */
+
+			swap_out (fte);
 			spte->alloced = false;
 			break;
 
 		case PAGE_TABLE:
 			ASSERT (spte->alloced == false);
+			ASSERT (fte == NULL);
 			/* Read acutal data from file or swap */
 			
 			if (spte->type == FILE_DATA) {
@@ -81,39 +81,39 @@ change_sup_data_location (struct sup_page_entry *spte, enum type_data type)
 				if (spte->read_bytes == 0)
 					pal_flag |= PAL_ZERO;
 
-				fte = get_user_frame (spte, pal_flag);
-				if (file_read_at (spte->file, fte->kpage,
+				new_fte = get_user_frame (spte, pal_flag);
+				if (file_read_at (spte->file, new_fte->kpage,
 						spte->read_bytes, spte->file_ofs) != (off_t)spte->read_bytes) {
-					free_user_frame (fte);
+					free_user_frame (new_fte);
 					return false;
 				}
-				memset (fte->kpage + spte->read_bytes, 0, spte->zero_bytes);
+				memset (new_fte->kpage + spte->read_bytes, 0, spte->zero_bytes);
 
-				if (!install_page (spte->upage, fte->kpage, spte->writable)) {
-					free_user_frame (fte);
+				if (!install_page (spte->upage, new_fte->kpage, spte->writable)) {
+					free_user_frame (new_fte);
 					return false;
 				}
+
 				// printf ("INSTALL PAGE SUCCESS! upage: %p, kpage: %p\n",
 				//				 spte->upage, fte->kpage);
-				spte->type = PAGE_TABLE;
+				//spte->type = PAGE_TABLE;
 			} else if (spte->type == SWAP_FILE) {
-				block_print_stats();
+				/* Read swap and set frame according to read_bytes and zero_bytes */
+
+				//block_print_stats();
 				pal_flag = PAL_USER;
 				if (spte->read_bytes == 0)
 					pal_flag |= PAL_ZERO;
-				fte = get_user_frame (spte, pal_flag);			
-				swap_read(spte,fte);
 
-				if (!install_page (spte->upage, fte->kpage, spte->writable)) {
+				new_fte = get_user_frame (spte, pal_flag);			
+				if (!install_page (spte->upage, new_fte->kpage, spte->writable)) {
 					free_user_frame (fte);
 					return false;
 				}
 
-				
-				spte->type=PAGE_TABLE;
-				block_print_stats();				
-				/* Read swap and set frame according to read_bytes and zero_bytes */
-				/* XXX: swap_in like function may be called here */
+				swap_read (spte, new_fte);
+
+				//block_print_stats();				
 			}
 			spte->alloced = true;
 			break;
@@ -163,9 +163,6 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->writable = writable;
 	spte->type = type;
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
-  
-	
-	
 	
 	hash_insert(&cur->page_table, &spte->page_elem);
 	lock_release (&sup_lock);
@@ -188,7 +185,7 @@ stack_growth (void *new_stack_ptr)
 	if ((uint32_t)(PHYS_BASE - new_stack_ptr) > MAX_STACK_SIZE)
 		return false;
 
-	spte = save_sup_page (new_stack_ptr, NULL, 0, 0, 0, true, PAGE_TABLE);
+	spte = save_sup_page (new_stack_ptr, NULL, 0, PGSIZE, 0, true, PAGE_TABLE);
 	fte = get_user_frame (spte, PAL_USER | PAL_ZERO);
 	kpage = fte->kpage;
 

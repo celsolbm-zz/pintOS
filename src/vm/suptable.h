@@ -3,6 +3,7 @@
 
 #include <hash.h>
 #include "filesys/file.h"
+#include "vm/frame.h"
 
 #define STACK_HEURISTIC 40
 #define MAX_STACK_SIZE	(8 * 1024 * 1024)		/* Max stack size is 8MB */
@@ -17,20 +18,22 @@ enum type_data {
 };
 
 struct sup_page_entry {
-	void *upage;									/* user page addr of this entry */
-	struct file *file;						/* associated file if any */
-	off_t file_ofs;								/* file position for this spte */
-	uint32_t read_bytes;					/* read bytes from file for this page */
-	uint32_t zero_bytes;					/* zero bytes from file for this page */
-	bool writable;								/* whether this page is writable */
-	enum type_data type;					/* data location of this entry */
-	bool alloced;									/* whether this entry has allocated frame */
-	struct hash_elem page_elem;		/* hash table element */
-	size_t sw_addr;               /* offset address of when the data is moved to the swap table */
+	void *upage;										/* user page addr of this entry */
+	struct file *file;							/* associated file if any */
+	off_t file_ofs;									/* file position for this spte */
+	uint32_t read_bytes;						/* read bytes from file for this page */
+	uint32_t zero_bytes;						/* zero bytes from file for this page */
+	bool writable;									/* whether this page is writable */
+	enum type_data type;						/* data location of this entry */
+	bool alloced;										/* whether this entry has allocated frame */
+	struct hash_elem page_elem;			/* hash table element */
+	size_t sw_addr;               	/* offset address of when the data is moved
+																		 to the swap table */
 };
 
 bool init_sup_table (void);
-bool change_sup_data_location (struct sup_page_entry *, enum type_data);
+bool change_sup_data_location (struct sup_page_entry *, 
+															 struct frame_table_entry *, enum type_data);
 struct sup_page_entry *sup_lookup (void *); 
 struct sup_page_entry *save_sup_page (void *, struct file *, off_t,
 																			uint32_t, uint32_t, bool,

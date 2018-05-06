@@ -1,5 +1,4 @@
 #include "vm/frame.h"
-#include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
@@ -91,7 +90,7 @@ evict_frame_entry (enum palloc_flags pal_flag)
 				/* Evict this entry (not accessed, dirty), move to swap */
 				// printf ("(evict_frame_entry) VICTIM FOUND!!!\n");
 				// DUMP_FRAME_TABLE_ENTRY (fte);
-				change_sup_data_location (fte->spte, SWAP_FILE);
+				change_sup_data_location (fte->spte, fte, SWAP_FILE);
 				list_remove (&fte->frame_elem);
 				pagedir_clear_page (fte->owner->pagedir, fte->spte->upage);
 				free_user_frame (fte);

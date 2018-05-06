@@ -1,22 +1,21 @@
-#include "swaptable.h"
-#include "userprog/pagedir.h"
-#include "threads/thread.h"
+#include "vm/swaptable.h"
+#include "devices/block.h"
 #include "threads/synch.h"
-#include "threads/malloc.h"
-#include <round.h>
-#include "lib/kernel/bitmap.h"
-#include "suptable.h"
-#include "frame.h"
 #include "threads/vaddr.h"
+#include <round.h>
 #include <stdio.h>
 #include <string.h>
-#define SECTOR_SIZE 512
 
+#define SECTORS_PER_PAGE (PGSIZE / BLOCK_SECTOR_SIZE)
+
+static struct block *swap;
+static struct lock sw_lock;
+static struct bitmap *sw_table;
 
 #if 0
 struct lock swap_lock;
 
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 static inline unsigned
 swap_hash (const struct hash_elem *sw_, void *aux UNUSED)
 {
@@ -24,7 +23,7 @@ swap_hash (const struct hash_elem *sw_, void *aux UNUSED)
 
   return hash_bytes (&sw->addr, sizeof sw->addr);
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 /* Returns true if swap a precedes swap b. */
 static inline bool
 swap_less (const struct hash_elem *sa_, const struct hash_elem *sb_,
@@ -35,8 +34,7 @@ swap_less (const struct hash_elem *sa_, const struct hash_elem *sb_,
 
   return sa->addr < sb->addr;
 }
-
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 struct swap_entry *
 swap_lookup (void *address)
 {
@@ -49,7 +47,7 @@ swap_lookup (void *address)
 	return (e != NULL) ? (hash_entry (e, struct swap_entry, swap_elem)) :
 											 (NULL);
 }
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 void
 save_swap (void *address, uint32_t r_bytes, uint32_t z_bytes,
 					 uint32_t file_p, bool wr)
@@ -67,87 +65,83 @@ save_swap (void *address, uint32_t r_bytes, uint32_t z_bytes,
 	hash_insert(&swap_table, &new_swap->swap_elem);
 	lock_release (&swap_lock);
 }
-/******************************************************************************/
-
 #endif 	
-	
-/******************************************************************************/
+/*----------------------------------------------------------------------------*/
 void
 init_swap_table (void)
 {
-  sw_table = bitmap_create(8192);
-  lock_init(&sw_lock);
-	
-	
+	swap = block_get_role (BLOCK_SWAP);
+  sw_table = bitmap_create (block_size (swap));
+	//printf ("=== (init_swap_table) bitmap size: %zu ===\n",
+	//				bitmap_size (sw_table));
+  lock_init (&sw_lock);
 }
-	
-/******************************************************************************/	
+/*----------------------------------------------------------------------------*/
 void 
-swap_load (struct sup_page_entry *swap)
+swap_out (struct frame_table_entry *fte)
 {
+	struct sup_page_entry *spte;
+	void *kpage;
+	size_t i;
 
+	lock_acquire (&sw_lock);	
+	
+	spte = fte->spte;
+	kpage = fte->kpage;
+	spte->sw_addr = bitmap_scan_and_flip (sw_table, 0, SECTORS_PER_PAGE, false);
 
-
-	uint32_t sector = swap->sw_addr;
-	struct thread *cur;
-	void *kaddr;
-	int loops, index;
-
-
-
-	if (!lock_held_by_current_thread(&sw_lock))
-		lock_acquire(&sw_lock);	
-
-	cur = thread_current ();
-	kaddr = pagedir_get_page (cur->pagedir, swap->upage);
-	//kaddr=swap->upage;
-	loops = DIV_ROUND_UP(swap->read_bytes+swap->zero_bytes,SECTOR_SIZE);
-	index = 0;
-	while (index < loops) {
-		block_write (block_get_role(BLOCK_SWAP), sector, kaddr); 
-		kaddr += 0x200;
-		sector++;
-		index++;
+	for (i = 0; i < SECTORS_PER_PAGE; i++) {
+		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == true);
+		block_write (swap, spte->sw_addr + i,
+								 (uint8_t *)kpage + i * BLOCK_SECTOR_SIZE); 
 	}
-	swap->type = SWAP_FILE;	
-	lock_release(&sw_lock);
 
+#if 0
+	if (spte->sw_addr == 0) {
+		printf ("\n ===== START SWAP_OUT =====\n");
+		DUMP_FRAME_TABLE_ENTRY (fte);
+		hex_dump (0, (const void *)kpage, PGSIZE, true);
+		printf ("===== END SWAP_OUT =====\n");
+	}
+#endif
+
+	lock_release (&sw_lock);
 }
-/******************************************************************************/
-
+/*----------------------------------------------------------------------------*/
 void
-swap_read (struct sup_page_entry *swap, struct frame_table_entry *fte)
+swap_read (struct sup_page_entry *spte, struct frame_table_entry *fte)
 {
+	size_t i;
+	void *kpage;
 
-	int loops = DIV_ROUND_UP(swap->read_bytes+swap->zero_bytes,SECTOR_SIZE);
-	int index = 0;
-	int sector = swap->sw_addr;
-	if (!lock_held_by_current_thread(&sw_lock))
-		lock_acquire(&sw_lock);	
-	void *paddr=fte->kpage;
-	//void *paddr=swap->upage;
-	while (index < loops) {
-		block_read (block_get_role(BLOCK_SWAP), sector, paddr);
-		paddr += 0x200;
-		sector++;
-		index++;
+	lock_acquire (&sw_lock);	
+
+	kpage = fte->kpage;
+
+	//printf ("(swap_read) start sector: %zu start kpage: %p\n",
+	//				spte->sw_addr, kpage);
+	for (i = 0; i < SECTORS_PER_PAGE; i++) {
+		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == true);
+		block_read (swap, spte->sw_addr + i,
+								 (uint8_t *)kpage + i * BLOCK_SECTOR_SIZE); 
+		//printf ("(swap_read) cur sector: %zu, kpage: %p\n",
+		//				spte->sw_addr + i, kpage + i * BLOCK_SECTOR_SIZE);
 	}
-	memset(fte->kpage+swap->read_bytes,0,swap->zero_bytes);
-  bitmap_set_multiple(sw_table,swap->sw_addr,(size_t) loops,false);
-	lock_release(&sw_lock);
+
+#if 0
+	if (spte->sw_addr == 0) {
+		printf ("\n ===== START SWAP_READ =====\n");
+		DUMP_FRAME_TABLE_ENTRY (fte);
+		hex_dump (0, (const void *)kpage, PGSIZE, true);
+		printf ("===== END SWAP_READ =====\n");
+	}
+#endif
+
+	for (i= 0; i < SECTORS_PER_PAGE; i++) {
+		bitmap_flip (sw_table, spte->sw_addr + i);
+		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == false);
+	}
+
+	lock_release (&sw_lock);
 }
-
-
-
-size_t
-get_swap_address(struct sup_page_entry *entry)
-{	//bool tst;
-//tst = lock_held_by_current_thread(&sw_lock);
-//printf("\n  value of bool is %d \n",tst); 
-	if (!lock_held_by_current_thread(&sw_lock))
-		lock_acquire(&sw_lock);	
-	size_t cnt = DIV_ROUND_UP(entry->read_bytes+entry->zero_bytes,SECTOR_SIZE);
-	size_t ret = bitmap_scan_and_flip(sw_table,0,cnt,false);
-	lock_release(&sw_lock);
-	return ret;
-}
+/*----------------------------------------------------------------------------*/
