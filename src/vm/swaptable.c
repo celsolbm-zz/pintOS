@@ -74,6 +74,7 @@ init_swap_table (void)
   sw_table = bitmap_create (block_size (swap));
 	//printf ("=== (init_swap_table) bitmap size: %zu ===\n",
 	//				bitmap_size (sw_table));
+	bitmap_set_all (sw_table, false);
   lock_init (&sw_lock);
 }
 /*----------------------------------------------------------------------------*/
@@ -89,6 +90,7 @@ swap_out (struct frame_table_entry *fte)
 	spte = fte->spte;
 	kpage = fte->kpage;
 	spte->sw_addr = bitmap_scan_and_flip (sw_table, 0, SECTORS_PER_PAGE, false);
+	ASSERT (spte->sw_addr % SECTORS_PER_PAGE == 0);
 
 	for (i = 0; i < SECTORS_PER_PAGE; i++) {
 		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == true);

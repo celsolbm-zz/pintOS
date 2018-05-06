@@ -113,7 +113,7 @@ change_sup_data_location (struct sup_page_entry *spte,
 
 				swap_read (spte, new_fte);
 
-				//block_print_stats();				
+				//block_print_stats();
 			}
 			spte->alloced = true;
 			break;
@@ -164,7 +164,7 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->type = type;
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
 	
-	hash_insert(&cur->page_table, &spte->page_elem);
+	hash_insert (&cur->page_table, &spte->page_elem);
 	lock_release (&sup_lock);
 
 	return spte;
