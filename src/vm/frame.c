@@ -49,6 +49,29 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 	new_fte->spte = spte;
 	new_fte->owner = thread_current ();
 
+
+
+struct list_elem *e = list_begin(&frame_table);
+struct frame_table_entry *ftet;
+while(1)
+	    {if(list_size(&frame_table)==0)
+				break;
+				ftet=list_entry(e,struct frame_table_entry,frame_elem);
+			 if (ftet->kpage==new_fte->kpage)
+				 {
+					 if( (ftet->spte->type==PAGE_TABLE)&(ftet->spte->alloced ==true))
+					   list_remove(&ftet->frame_elem);
+			   }
+				if (e == list_end(&frame_table))
+			    break;
+			  e = list_next(e);
+			  if (e == list_end(&frame_table))
+			   break;
+			}
+
+
+
+
 	list_push_back (&frame_table, &new_fte->frame_elem);
 	lock_release (&frame_lock);
 
