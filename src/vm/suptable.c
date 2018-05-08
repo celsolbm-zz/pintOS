@@ -140,15 +140,19 @@ bool
 save_sup_data_to_swap (struct sup_page_entry *spte,
 											 struct frame_table_entry *fte)
 {
+	struct thread *cur = thread_current ();
+
 	ASSERT (spte->alloced == true);
 
-	lock_acquire (&fte->owner->sup_lock);
+	if (cur != fte->owner)
+		lock_acquire (&fte->owner->sup_lock);
 
 	swap_out (fte);
 	spte->alloced = false;
 	spte->type = SWAP_FILE;
 
-	lock_release (&fte->owner->sup_lock);
+	if (cur != fte->owner)
+		lock_release (&fte->owner->sup_lock);
 
 	return true;
 }
