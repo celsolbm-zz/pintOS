@@ -3,12 +3,10 @@
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
-#include "userprog/process.h"
+#include "userprog/pagedir.h"
 #include "vm/swaptable.h"
 #include <stdio.h>
 #include <string.h>
-
-static struct lock sup_lock;	/* Lock for accessing sup page table */
 
 /*----------------------------------------------------------------------------*/
 static inline unsigned
@@ -35,6 +33,30 @@ page_less (const struct hash_elem *sa_, const struct hash_elem *sb_,
   return sa->upage < sb->upage;
 }
 /*----------------------------------------------------------------------------*/
+/* sup page table entry deletion function when destroying sup page table */
+static inline void
+sup_table_delete (struct hash_elem *e, void *aux UNUSED)
+{
+	struct sup_page_entry *spte;
+	struct thread *cur = thread_current ();
+	void *kpage;
+
+	spte = hash_entry (e, struct sup_page_entry, page_elem);
+	if (spte->type == PAGE_TABLE) {
+		ASSERT (spte->alloced);
+		//printf ("(sup_table_delete) FRAME delete in %s[%d]\n", cur->name, cur->tid);
+		kpage = pagedir_get_page (cur->pagedir, spte->upage);
+		free_user_frame (search_user_frame (kpage));
+		pagedir_clear_page (cur->pagedir, spte->upage);
+	} else if (spte->type == SWAP_FILE) {
+		ASSERT (!spte->alloced);
+		//printf ("(sup_table_delete) SWAP delete in %s[%d]\n", cur->name, cur->tid);
+		invalidate_swap_table (spte->sw_addr);
+	}
+	
+	free (spte);
+}
+/*----------------------------------------------------------------------------*/
 /* Initialize supplemental page table */
 bool
 init_sup_table (void)
@@ -42,85 +64,92 @@ init_sup_table (void)
 	struct thread *cur = thread_current ();
 	bool result;
 
-	lock_init (&sup_lock);
+	lock_init (&cur->sup_lock);
 	result = hash_init (&cur->page_table, page_hash, page_less, NULL);
 	
 	return result;
 }
 /*----------------------------------------------------------------------------*/
-/* Change sup page table entry's type to TYPE argument */
+void
+destroy_sup_table (void)
+{
+	struct thread *cur = thread_current ();
+
+	hash_destroy (&cur->page_table, sup_table_delete);
+}
+/*----------------------------------------------------------------------------*/
 bool
-change_sup_data_location (struct sup_page_entry *spte,
-													struct frame_table_entry *fte, enum type_data type)
+load_sup_data_to_frame (struct sup_page_entry *spte)
 {
 	struct frame_table_entry *new_fte;
 	enum palloc_flags pal_flag;
+	struct thread *cur;
 
-	switch (type) {
-		case FILE_DATA:
-			/* XXX: This case may not necessary */
-			break;
+	ASSERT (spte->alloced == false);
 
-		case SWAP_FILE:
-			/* Move to swap space */
-			ASSERT (fte != NULL);
-			ASSERT (spte->alloced == true);
+	cur = thread_current ();
+	lock_acquire (&cur->sup_lock);
 
-			swap_out (fte);
-			spte->alloced = false;
-			break;
+	if (spte->type == FILE_DATA) {
+		/* Read file and set frame according to read_bytes and zero_bytes */
+		pal_flag = PAL_USER;
+		if (spte->read_bytes == 0)
+			pal_flag |= PAL_ZERO;
 
-		case PAGE_TABLE:
-			ASSERT (spte->alloced == false);
-			ASSERT (fte == NULL);
-			/* Read acutal data from file or swap */
-			
-			if (spte->type == FILE_DATA) {
-				/* Read file and set frame according to read_bytes and zero_bytes */
-				pal_flag = PAL_USER;
-				if (spte->read_bytes == 0)
-					pal_flag |= PAL_ZERO;
+		new_fte = get_user_frame (spte, pal_flag);
+		if (file_read_at (spte->file, new_fte->kpage,
+				spte->read_bytes, spte->file_ofs) != (off_t)spte->read_bytes)
+			goto fail;
 
-				new_fte = get_user_frame (spte, pal_flag);
-				if (file_read_at (spte->file, new_fte->kpage,
-						spte->read_bytes, spte->file_ofs) != (off_t)spte->read_bytes) {
-					free_user_frame (new_fte);
-					return false;
-				}
-				memset (new_fte->kpage + spte->read_bytes, 0, spte->zero_bytes);
+		memset (new_fte->kpage + spte->read_bytes, 0, spte->zero_bytes);
 
-				if (!install_page (spte->upage, new_fte->kpage, spte->writable)) {
-					free_user_frame (new_fte);
-					return false;
-				}
+		if (!install_page (spte->upage, new_fte->kpage, spte->writable))
+			goto fail;
 
-				// printf ("INSTALL PAGE SUCCESS! upage: %p, kpage: %p\n",
-				//				 spte->upage, fte->kpage);
-				//spte->type = PAGE_TABLE;
-			} else if (spte->type == SWAP_FILE) {
-				/* Read swap and set frame according to read_bytes and zero_bytes */
-				
-				//block_print_stats();
-				pal_flag = PAL_USER;
-				if (spte->read_bytes == 0)
-					pal_flag |= PAL_ZERO;
-				new_fte = get_user_frame (spte, pal_flag);
-				//printf("\n just left get_user_frame \n ");
-				if (!install_page (spte->upage, new_fte->kpage, spte->writable)) {
-					free_user_frame (fte);
-					return false;
-				}
+		// printf ("INSTALL PAGE SUCCESS! upage: %p, kpage: %p\n",
+		//				 spte->upage, fte->kpage);
+	} else if (spte->type == SWAP_FILE) {
+		/* Read swap and set frame according to read_bytes and zero_bytes */
+		pal_flag = PAL_USER;
+		if (spte->read_bytes == 0)
+			pal_flag |= PAL_ZERO;
 
-				swap_read (spte, new_fte);
+		new_fte = get_user_frame (spte, pal_flag);
+		//printf("\n just left get_user_frame \n ");
+		if (!install_page (spte->upage, new_fte->kpage, spte->writable))
+			goto fail;
 
-				//block_print_stats();
-			}
-			spte->alloced = true;
-			break;
+		swap_read (spte, new_fte);
+	} else {
+		ASSERT (0);
 	}
 
-	spte->type = type;
- 
+	spte->type = PAGE_TABLE;
+	spte->alloced = true;
+	lock_release (&cur->sup_lock);
+	return true;
+
+fail:
+	free_user_frame (new_fte);
+	lock_release (&cur->sup_lock);
+	return false;
+}
+/*----------------------------------------------------------------------------*/
+/* Move to swap space */
+bool
+save_sup_data_to_swap (struct sup_page_entry *spte,
+											 struct frame_table_entry *fte)
+{
+	ASSERT (spte->alloced == true);
+
+	lock_acquire (&fte->owner->sup_lock);
+
+	swap_out (fte);
+	spte->alloced = false;
+	spte->type = SWAP_FILE;
+
+	lock_release (&fte->owner->sup_lock);
+
 	return true;
 }
 /*----------------------------------------------------------------------------*/
@@ -147,11 +176,11 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	struct thread *cur = thread_current ();
 	struct sup_page_entry *spte;
 
-	lock_acquire (&sup_lock);
+	lock_acquire (&cur->sup_lock);
 	spte = malloc (sizeof(struct sup_page_entry));
 	if (spte == NULL) {
 		printf ("FATAL! CAN'T ALLOCATE SUP PAGE ENTRY!!!\n");
-		lock_release (&sup_lock);
+		lock_release (&cur->sup_lock);
 		return NULL;
 	}
 
@@ -165,7 +194,7 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
   //printf(" \n value of upage is %p", upage);	
 	hash_insert (&cur->page_table, &spte->page_elem);
-	lock_release (&sup_lock);
+	lock_release (&cur->sup_lock);
 
 	return spte;
 }

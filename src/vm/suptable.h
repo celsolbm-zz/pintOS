@@ -32,8 +32,10 @@ struct sup_page_entry {
 };
 
 bool init_sup_table (void);
-bool change_sup_data_location (struct sup_page_entry *, 
-															 struct frame_table_entry *, enum type_data);
+void destroy_sup_table (void);
+bool load_sup_data_to_frame (struct sup_page_entry *);
+bool save_sup_data_to_swap (struct sup_page_entry *,
+														struct frame_table_entry *);
 struct sup_page_entry *sup_lookup (void *); 
 struct sup_page_entry *save_sup_page (void *, struct file *, off_t,
 																			uint32_t, uint32_t, bool,

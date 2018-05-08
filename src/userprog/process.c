@@ -84,10 +84,10 @@ start_process (void *file_name_)
 	////////////////// CELSO STUFF IS IN HERE
 
 	/* Initialize supplemental page table */
-	success = init_sup_table();
+	success = init_sup_table ();
 	if (!success) {
-	        printf ("FATAL! fail to initialize suplemental page table\n");
-	        thread_exit ();
+		printf ("FATAL! fail to initialize suplemental page table\n");
+		thread_exit ();
 	}
 
 #if 0
@@ -222,6 +222,8 @@ process_exit (void)
     sema_up (&cur->chinfo_by_parent->exit_sema);
   }
 
+	destroy_sup_table ();
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -341,7 +343,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
-if(!lock_held_by_current_thread(&filesys_lock))
+
   lock_acquire (&filesys_lock);
 
   /* Open executable file. */

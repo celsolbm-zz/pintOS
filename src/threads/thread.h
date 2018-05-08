@@ -113,7 +113,6 @@ struct thread
      * process.
      */
     struct child_info *chinfo_by_parent;  
-		struct list holding_lock;		/* List of holding locks */
 		char parent_name[16];
 
     /* file related information */
@@ -126,6 +125,7 @@ struct thread
 		 * Project 3: Virtual Memory
 		 */
 		struct hash page_table;
+		struct lock sup_lock;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

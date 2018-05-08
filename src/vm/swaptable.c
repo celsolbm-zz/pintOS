@@ -138,11 +138,24 @@ swap_read (struct sup_page_entry *spte, struct frame_table_entry *fte)
 	}
 #endif
 
-	for (i= 0; i < SECTORS_PER_PAGE; i++) {
+	for (i = 0; i < SECTORS_PER_PAGE; i++) {
 		bitmap_flip (sw_table, spte->sw_addr + i);
 		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == false);
 	}
 //printf("\n finishes read? \n");
+	lock_release (&sw_lock);
+}
+/*----------------------------------------------------------------------------*/
+void
+invalidate_swap_table (size_t sector)
+{
+	size_t i;
+
+	lock_acquire (&sw_lock);	
+	for (i = 0; i < SECTORS_PER_PAGE; i++) {
+		ASSERT (bitmap_test (sw_table, sector + i) == true);
+		bitmap_flip (sw_table, sector + i);
+	}
 	lock_release (&sw_lock);
 }
 /*----------------------------------------------------------------------------*/

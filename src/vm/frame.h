@@ -17,6 +17,7 @@ void init_frame_table (void);
 struct frame_table_entry *get_user_frame (struct sup_page_entry *,
 																					enum palloc_flags);
 void free_user_frame (struct frame_table_entry *);
+struct frame_table_entry *search_user_frame (void *);
 
 #define DUMP_FRAME_TABLE_ENTRY(fte)												\
 	do {																										\

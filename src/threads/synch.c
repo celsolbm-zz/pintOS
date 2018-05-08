@@ -192,13 +192,10 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
-	struct thread *cur = thread_current();
-
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-	list_push_back (&cur->holding_lock, &lock->holding_elem);
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 }
@@ -233,19 +230,6 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-  /* Remove this lock from thread's holding_lock list */
-  struct thread * cur = thread_current ();
-  struct list_elem *e;
-  for (e = list_begin (&cur->holding_lock);
-       e != list_end (&cur->holding_lock);
-       e = list_next (e)) {
-    struct lock *l = list_entry (e, struct lock, holding_elem);
-    if (l == lock) {
-      list_remove (e);
-      break;
-    }
-}
-
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);

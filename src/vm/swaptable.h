@@ -30,5 +30,6 @@ void save_swap (void *, uint32_t, uint32_t, uint32_t, bool);
 void init_swap_table (void);
 void swap_out (struct frame_table_entry *);
 void swap_read (struct sup_page_entry *, struct frame_table_entry *);
+void invalidate_swap_table (size_t);
 
 #endif /* _SWAPTABLE */

@@ -306,29 +306,10 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
 
-//free(thread_current()->chinfo_by_parent);
-
-
-//if (thread_current()->chinfo_by_parent==NULL)
-//printf("SAPORRA EH NULL \n \n");
-//else
-//{free (thread_current()->chinfo_by_parent);
-//printf("OH SHIT IS NOT NULL \n \n");
-//}
-
-
-
-
   intr_disable ();
 
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
-//free(thread_current()->chinfo_by_parent);
-//if (!strcmp(thread_current()->parent_name,"hue"))
-//{printf("\n \n my dad is the original multi oom and chinfo exists %d  \n \n ",thread_current()->chinfo_by_parent->exit_status);
-//}
-
-
   schedule ();
   NOT_REACHED ();
 }
@@ -500,7 +481,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-	list_init (&t->holding_lock);
 
   /* Initialize process related information */
   list_init (&t->child_list);
