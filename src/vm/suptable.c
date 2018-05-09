@@ -146,16 +146,15 @@ save_sup_data_to_swap (struct sup_page_entry *spte,
 	struct thread *cur = thread_current ();
 
 	ASSERT (spte->alloced == true);
-//	printf(" \n fucks up sup data to swap");
-//	if (cur != fte->owner)
-//		lock_acquire (&fte->owner->sup_lock);
+	if (cur != fte->owner)
+		lock_acquire (&fte->owner->sup_lock);
 	//printf("\n pass here?");
 	swap_out (fte);
 	spte->alloced = false;
 	spte->type = SWAP_FILE;
 
-//	if (cur != fte->owner)
-//		lock_release (&fte->owner->sup_lock);
+	if (cur != fte->owner)
+		lock_release (&fte->owner->sup_lock);
 
 	return true;
 }
@@ -182,7 +181,6 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 {
 	struct thread *cur = thread_current ();
 	struct sup_page_entry *spte;
- // printf(" \n fucks up lock save sup page");
 
 	if(!lock_held_by_current_thread(&cur->sup_lock))
 	lock_acquire (&cur->sup_lock);
@@ -201,7 +199,6 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->writable = writable;
 	spte->type = type;
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
-  //printf(" \n value of upage is %p", upage);	
 	hash_insert (&cur->page_table, &spte->page_elem);
 	lock_release (&cur->sup_lock);
 

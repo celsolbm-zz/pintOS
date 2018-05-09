@@ -248,7 +248,7 @@ read (int fd, void *buffer, unsigned size)
 {
 	if (size == 0)
 		return 0;
-
+	void *kbuf;
   int ret;
   struct file_info *finfo;
   if (fd == STDIN_FILENO) {
@@ -270,7 +270,7 @@ read (int fd, void *buffer, unsigned size)
     lock_release (&filesys_lock);
     return -1;
   }
-	void *kbuf = malloc(size);
+	kbuf = malloc(size);
 	if (kbuf == NULL) {
     lock_release (&filesys_lock);
     return -1;

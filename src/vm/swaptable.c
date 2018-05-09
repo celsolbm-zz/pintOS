@@ -117,11 +117,9 @@ swap_read (struct sup_page_entry *spte, struct frame_table_entry *fte)
 {
 	size_t i;
 	void *kpage;
-//printf("\n fucks up swap_read");
 
 	if(!lock_held_by_current_thread(&sw_lock))
 		lock_acquire (&sw_lock);	
-//printf("\n passed swap read lock");
 	kpage = fte->kpage;
 
 	//printf ("(swap_read) start sector: %zu start upage: %p\n",
@@ -147,7 +145,6 @@ swap_read (struct sup_page_entry *spte, struct frame_table_entry *fte)
 		bitmap_flip (sw_table, spte->sw_addr + i);
 		ASSERT (bitmap_test (sw_table, spte->sw_addr + i) == false);
 	}
-//printf("\n finishes read? \n");
 	lock_release (&sw_lock);
 }
 /*----------------------------------------------------------------------------*/
@@ -155,7 +152,6 @@ void
 invalidate_swap_table (size_t sector)
 {
 	size_t i;
-//printf("\n fucks up invalidate swap table");
 
 	if(!lock_held_by_current_thread(&sw_lock))
 		lock_acquire (&sw_lock);	

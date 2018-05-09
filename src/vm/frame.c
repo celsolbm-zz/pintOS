@@ -26,20 +26,17 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 {
 	struct frame_table_entry *new_fte;
 	uint8_t *kpage;
-//printf("i \n fucks up get user frame");
 	
 	if(!lock_held_by_current_thread(&frame_lock))
 	lock_acquire (&frame_lock);
 
 	kpage = palloc_get_page (pal_flag);
 	if (kpage == NULL) {
-		//printf(" \n about to call evict");
 		kpage = evict_frame_entry (pal_flag);
 		if (kpage == NULL) {
 			ASSERT (0);
 		}
 	}
-	//printf("\n just left evict");
 
 	new_fte = malloc (sizeof(struct frame_table_entry));
 	if (new_fte == NULL) {
@@ -83,7 +80,6 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 void
 free_user_frame (struct frame_table_entry *fte)
 {
-// printf("\n fucks up free_user_frame");
 	
 	if(!lock_held_by_current_thread(&frame_lock))
 	lock_acquire (&frame_lock);
@@ -98,7 +94,6 @@ search_user_frame (void *kpage)
 {
 	struct list_elem *e;
 	struct frame_table_entry *fte;
-//printf("\n fucks up search user frame");
 
 	if(!lock_held_by_current_thread(&frame_lock))
 	lock_acquire (&frame_lock);
@@ -135,7 +130,6 @@ evict_frame_entry (enum palloc_flags pal_flag)
 			pagedir_set_accessed (fte->owner->pagedir, fte->spte->upage, false);
 		} else {
 			timer += 1;
-			//printf("enter the else on evict? timer is");
 			if (pagedir_is_dirty (fte->owner->pagedir, fte->spte->upage) ||
 					(timer > 4)) {
 				/* Evict this entry (not accessed, dirty), move to swap */
@@ -147,7 +141,6 @@ evict_frame_entry (enum palloc_flags pal_flag)
 
 				list_remove (&fte->frame_elem);
 				free (fte);
-				//printf("timer is %d",timer);
 				
 				return palloc_get_page (pal_flag);
 			}
