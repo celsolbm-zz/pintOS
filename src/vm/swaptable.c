@@ -85,9 +85,10 @@ swap_out (struct frame_table_entry *fte)
 	struct sup_page_entry *spte;
 	void *kpage;
 	size_t i;
-
+//printf("\n fucks up swap_out");
+if(!lock_held_by_current_thread(&sw_lock))
 	lock_acquire (&sw_lock);	
-	
+//printf("\n passed swap_out lock");	
 	spte = fte->spte;
 	kpage = fte->kpage;
 	spte->sw_addr = bitmap_scan_and_flip (sw_table, 0, SECTORS_PER_PAGE, false);
@@ -105,8 +106,10 @@ swap_out (struct frame_table_entry *fte)
 		printf ("===== END SWAP_OUT =====\n");
 	}
 #endif
-
 	lock_release (&sw_lock);
+
+
+// printf("after the swap out loop");
 }
 /*----------------------------------------------------------------------------*/
 void
@@ -114,9 +117,11 @@ swap_read (struct sup_page_entry *spte, struct frame_table_entry *fte)
 {
 	size_t i;
 	void *kpage;
+//printf("\n fucks up swap_read");
 
-	lock_acquire (&sw_lock);	
-
+	if(!lock_held_by_current_thread(&sw_lock))
+		lock_acquire (&sw_lock);	
+//printf("\n passed swap read lock");
 	kpage = fte->kpage;
 
 	//printf ("(swap_read) start sector: %zu start upage: %p\n",
@@ -150,8 +155,10 @@ void
 invalidate_swap_table (size_t sector)
 {
 	size_t i;
+//printf("\n fucks up invalidate swap table");
 
-	lock_acquire (&sw_lock);	
+	if(!lock_held_by_current_thread(&sw_lock))
+		lock_acquire (&sw_lock);	
 	for (i = 0; i < SECTORS_PER_PAGE; i++) {
 		ASSERT (bitmap_test (sw_table, sector + i) == true);
 		bitmap_flip (sw_table, sector + i);

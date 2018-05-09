@@ -598,7 +598,7 @@ allocate_tid (void)
 {
   static tid_t next_tid = 1;
   tid_t tid;
-
+if(!lock_held_by_current_thread(&tid_lock))
   lock_acquire (&tid_lock);
   tid = next_tid++;
   lock_release (&tid_lock);

@@ -11,7 +11,7 @@
 #include "userprog/pagedir.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
-
+#include <string.h>
 #include "vm/suptable.h"
 
 #define MAX_ARG 3 /* Maximum number of system call arguments */
@@ -246,6 +246,9 @@ if (!lock_held_by_current_thread(&filesys_lock))
 int
 read (int fd, void *buffer, unsigned size)
 {
+	if (size == 0)
+		return 0;
+
   int ret;
   struct file_info *finfo;
   if (fd == STDIN_FILENO) {
@@ -258,6 +261,7 @@ read (int fd, void *buffer, unsigned size)
     }
     return (int)size;
   }
+
   if (!lock_held_by_current_thread(&filesys_lock))
 		lock_acquire (&filesys_lock);
   
@@ -266,9 +270,17 @@ read (int fd, void *buffer, unsigned size)
     lock_release (&filesys_lock);
     return -1;
   }
-  ret = file_read (finfo->file, buffer, size);
-  lock_release (&filesys_lock);
+	void *kbuf = malloc(size);
+	if (kbuf == NULL) {
+    lock_release (&filesys_lock);
+    return -1;
+	}
 
+  ret = file_read (finfo->file, kbuf, size);//kbuf goes where buffer is
+
+	memcpy(buffer, kbuf, ret);
+  lock_release (&filesys_lock);
+	free(kbuf);
   return ret;
 }
 /*----------------------------------------------------------------------------*/
@@ -277,6 +289,10 @@ write (int fd, const void *buffer, unsigned size)
 {
   int ret;
   struct file_info *finfo;
+	void *kbuf;
+
+	if (size == 0)
+		return 0;
 
   if (fd == STDOUT_FILENO) {
     putbuf (buffer, (size_t)size);
@@ -290,7 +306,15 @@ if (!lock_held_by_current_thread(&filesys_lock))
     return -1;
   }
 
-  ret = file_write (finfo->file, buffer, size);
+  kbuf = malloc(size);
+	if (kbuf == NULL) {
+    lock_release (&filesys_lock);
+		return -1;
+	}
+  memcpy(kbuf, buffer, size);
+
+  ret = file_write (finfo->file, kbuf, size);
+	free(kbuf);
   lock_release (&filesys_lock);
 
   return ret;

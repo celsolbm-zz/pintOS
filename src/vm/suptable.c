@@ -88,6 +88,9 @@ load_sup_data_to_frame (struct sup_page_entry *spte)
 	ASSERT (spte->alloced == false);
 
 	cur = thread_current ();
+	//printf("\n fuck ups lock load sup data to frame");
+	
+	if(!lock_held_by_current_thread(&cur->sup_lock))
 	lock_acquire (&cur->sup_lock);
 
 	if (spte->type == FILE_DATA) {
@@ -143,16 +146,16 @@ save_sup_data_to_swap (struct sup_page_entry *spte,
 	struct thread *cur = thread_current ();
 
 	ASSERT (spte->alloced == true);
-
-	if (cur != fte->owner)
-		lock_acquire (&fte->owner->sup_lock);
-
+//	printf(" \n fucks up sup data to swap");
+//	if (cur != fte->owner)
+//		lock_acquire (&fte->owner->sup_lock);
+	//printf("\n pass here?");
 	swap_out (fte);
 	spte->alloced = false;
 	spte->type = SWAP_FILE;
 
-	if (cur != fte->owner)
-		lock_release (&fte->owner->sup_lock);
+//	if (cur != fte->owner)
+//		lock_release (&fte->owner->sup_lock);
 
 	return true;
 }
@@ -179,7 +182,9 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 {
 	struct thread *cur = thread_current ();
 	struct sup_page_entry *spte;
+ // printf(" \n fucks up lock save sup page");
 
+	if(!lock_held_by_current_thread(&cur->sup_lock))
 	lock_acquire (&cur->sup_lock);
 	spte = malloc (sizeof(struct sup_page_entry));
 	if (spte == NULL) {

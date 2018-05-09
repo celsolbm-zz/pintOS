@@ -26,7 +26,9 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 {
 	struct frame_table_entry *new_fte;
 	uint8_t *kpage;
-
+//printf("i \n fucks up get user frame");
+	
+	if(!lock_held_by_current_thread(&frame_lock))
 	lock_acquire (&frame_lock);
 
 	kpage = palloc_get_page (pal_flag);
@@ -81,7 +83,9 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 void
 free_user_frame (struct frame_table_entry *fte)
 {
-
+// printf("\n fucks up free_user_frame");
+	
+	if(!lock_held_by_current_thread(&frame_lock))
 	lock_acquire (&frame_lock);
 	palloc_free_page (fte->kpage);
 	list_remove (&fte->frame_elem);
@@ -94,7 +98,9 @@ search_user_frame (void *kpage)
 {
 	struct list_elem *e;
 	struct frame_table_entry *fte;
+//printf("\n fucks up search user frame");
 
+	if(!lock_held_by_current_thread(&frame_lock))
 	lock_acquire (&frame_lock);
 	for (e = list_begin (&frame_table); e != list_end (&frame_table);
 			 e = list_next (e)) {
@@ -124,7 +130,7 @@ evict_frame_entry (enum palloc_flags pal_flag)
 	e = list_begin (&frame_table);
 	while (1) {
 		fte = list_entry (e, struct frame_table_entry, frame_elem);
-
+		
 		if (pagedir_is_accessed (fte->owner->pagedir, fte->spte->upage)) {
 			pagedir_set_accessed (fte->owner->pagedir, fte->spte->upage, false);
 		} else {
