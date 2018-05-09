@@ -4,6 +4,7 @@
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "userprog/syscall.h"
 #include "vm/swaptable.h"
 #include <stdio.h>
 #include <string.h>
@@ -44,13 +45,11 @@ sup_table_delete (struct hash_elem *e, void *aux UNUSED)
 	spte = hash_entry (e, struct sup_page_entry, page_elem);
 	if (spte->type == PAGE_TABLE) {
 		ASSERT (spte->alloced);
-		//printf ("(sup_table_delete) FRAME delete in %s[%d]\n", cur->name, cur->tid);
 		kpage = pagedir_get_page (cur->pagedir, spte->upage);
 		free_user_frame (search_user_frame (kpage));
 		pagedir_clear_page (cur->pagedir, spte->upage);
 	} else if (spte->type == SWAP_FILE) {
 		ASSERT (!spte->alloced);
-		//printf ("(sup_table_delete) SWAP delete in %s[%d]\n", cur->name, cur->tid);
 		invalidate_swap_table (spte->sw_addr);
 	}
 	
@@ -88,10 +87,9 @@ load_sup_data_to_frame (struct sup_page_entry *spte)
 	ASSERT (spte->alloced == false);
 
 	cur = thread_current ();
-	//printf("\n fuck ups lock load sup data to frame");
 	
-	if(!lock_held_by_current_thread(&cur->sup_lock))
-	lock_acquire (&cur->sup_lock);
+	if (!lock_held_by_current_thread (&cur->sup_lock))
+		lock_acquire (&cur->sup_lock);
 
 	if (spte->type == FILE_DATA) {
 		/* Read file and set frame according to read_bytes and zero_bytes */
@@ -100,17 +98,18 @@ load_sup_data_to_frame (struct sup_page_entry *spte)
 			pal_flag |= PAL_ZERO;
 
 		new_fte = get_user_frame (spte, pal_flag);
+
+		lock_acquire (&filesys_lock);
 		if (file_read_at (spte->file, new_fte->kpage,
 				spte->read_bytes, spte->file_ofs) != (off_t)spte->read_bytes)
 			goto fail;
 
+		lock_release (&filesys_lock);
 		memset (new_fte->kpage + spte->read_bytes, 0, spte->zero_bytes);
 
 		if (!install_page (spte->upage, new_fte->kpage, spte->writable))
 			goto fail;
 
-		// printf ("INSTALL PAGE SUCCESS! upage: %p, kpage: %p\n",
-		//				 spte->upage, fte->kpage);
 	} else if (spte->type == SWAP_FILE) {
 		/* Read swap and set frame according to read_bytes and zero_bytes */
 		pal_flag = PAL_USER;
@@ -118,7 +117,6 @@ load_sup_data_to_frame (struct sup_page_entry *spte)
 			pal_flag |= PAL_ZERO;
 
 		new_fte = get_user_frame (spte, pal_flag);
-		//printf("\n just left get_user_frame \n ");
 		if (!install_page (spte->upage, new_fte->kpage, spte->writable))
 			goto fail;
 
@@ -134,6 +132,8 @@ load_sup_data_to_frame (struct sup_page_entry *spte)
 
 fail:
 	free_user_frame (new_fte);
+	if (lock_held_by_current_thread (&filesys_lock))
+		lock_release (&filesys_lock);
 	lock_release (&cur->sup_lock);
 	return false;
 }
@@ -148,7 +148,7 @@ save_sup_data_to_swap (struct sup_page_entry *spte,
 	ASSERT (spte->alloced == true);
 	if (cur != fte->owner)
 		lock_acquire (&fte->owner->sup_lock);
-	//printf("\n pass here?");
+
 	swap_out (fte);
 	spte->alloced = false;
 	spte->type = SWAP_FILE;
@@ -182,8 +182,9 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	struct thread *cur = thread_current ();
 	struct sup_page_entry *spte;
 
-	if(!lock_held_by_current_thread(&cur->sup_lock))
-	lock_acquire (&cur->sup_lock);
+	if (!lock_held_by_current_thread (&cur->sup_lock))
+		lock_acquire (&cur->sup_lock);
+
 	spte = malloc (sizeof(struct sup_page_entry));
 	if (spte == NULL) {
 		printf ("FATAL! CAN'T ALLOCATE SUP PAGE ENTRY!!!\n");
@@ -199,6 +200,7 @@ save_sup_page (void *upage, struct file *file, off_t ofs, uint32_t r_bytes,
 	spte->writable = writable;
 	spte->type = type;
 	spte->alloced = (type == PAGE_TABLE) ? true : false;
+
 	hash_insert (&cur->page_table, &spte->page_elem);
 	lock_release (&cur->sup_lock);
 
@@ -215,8 +217,6 @@ stack_growth (void *new_stack_ptr)
 	struct frame_table_entry *fte;
 
 	new_stack_ptr = pg_round_down (new_stack_ptr);
-	// printf ("(stack_growth) PHYS_BASE - new_stack_ptr: %u, MAX_STACK_SIZE: %u\n",
-	// 				(uint32_t)(PHYS_BASE - new_stack_ptr), MAX_STACK_SIZE);
 	if ((uint32_t)(PHYS_BASE - new_stack_ptr) > MAX_STACK_SIZE)
 		return false;
 
@@ -224,16 +224,12 @@ stack_growth (void *new_stack_ptr)
 	fte = get_user_frame (spte, PAL_USER | PAL_ZERO);
 	kpage = fte->kpage;
 
-	// printf ("(stack_growth) NEW_STACK_PTR: %p\n", new_stack_ptr);
 	success = install_page (new_stack_ptr, kpage, true);
 	if (!success) {
 		free_user_frame (fte);
 		return success;
 	}
 	
-	// printf ("(stack_growth) INSTALL PAGE SUCCESS! upage: %p, kpage: %p\n",
-	//				 spte->upage, fte->kpage);
-
 	return success;
 }
 /*----------------------------------------------------------------------------*/

@@ -176,8 +176,8 @@ bool
 create (const char *file, unsigned initial_size)
 {
   bool ret;
-if (!lock_held_by_current_thread(&filesys_lock))
-  lock_acquire (&filesys_lock);
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
   ret = filesys_create (file, (off_t)initial_size);
   lock_release (&filesys_lock);
 
@@ -188,8 +188,9 @@ bool
 remove (const char *file)
 {
   bool ret;
-if (!lock_held_by_current_thread(&filesys_lock))
-  lock_acquire (&filesys_lock);
+
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
   ret = filesys_remove (file);
   lock_release (&filesys_lock);
 
@@ -202,8 +203,10 @@ open (const char *file)
   struct thread *cur = thread_current ();
   struct file_info *finfo;
   struct file *temp_file;
-if (!lock_held_by_current_thread(&filesys_lock))
-  lock_acquire (&filesys_lock);
+
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
+
   temp_file = filesys_open (file);
   if (temp_file == NULL) {
     lock_release (&filesys_lock);
@@ -230,8 +233,10 @@ filesize (int fd)
 {
   int ret;
   struct file_info *finfo;
-if (!lock_held_by_current_thread(&filesys_lock))
-  lock_acquire (&filesys_lock);
+
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
+
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
@@ -246,11 +251,13 @@ if (!lock_held_by_current_thread(&filesys_lock))
 int
 read (int fd, void *buffer, unsigned size)
 {
-	if (size == 0)
-		return 0;
 	void *kbuf;
   int ret;
   struct file_info *finfo;
+
+	if (size == 0)
+		return 0;
+
   if (fd == STDIN_FILENO) {
     char *bufptr = (char *)buffer;
     unsigned i;
@@ -262,7 +269,7 @@ read (int fd, void *buffer, unsigned size)
     return (int)size;
   }
 
-  if (!lock_held_by_current_thread(&filesys_lock))
+  if (!lock_held_by_current_thread (&filesys_lock))
 		lock_acquire (&filesys_lock);
   
 	finfo = get_file_info (fd);
@@ -270,17 +277,19 @@ read (int fd, void *buffer, unsigned size)
     lock_release (&filesys_lock);
     return -1;
   }
-	kbuf = malloc(size);
+
+	kbuf = malloc (size);
 	if (kbuf == NULL) {
     lock_release (&filesys_lock);
     return -1;
 	}
 
   ret = file_read (finfo->file, kbuf, size);//kbuf goes where buffer is
+	memcpy (buffer, kbuf, ret);
 
-	memcpy(buffer, kbuf, ret);
   lock_release (&filesys_lock);
-	free(kbuf);
+	free (kbuf);
+
   return ret;
 }
 /*----------------------------------------------------------------------------*/
@@ -298,23 +307,25 @@ write (int fd, const void *buffer, unsigned size)
     putbuf (buffer, (size_t)size);
     return (int)size;
   }
-if (!lock_held_by_current_thread(&filesys_lock))
-  lock_acquire (&filesys_lock);
+
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
+
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
     return -1;
   }
 
-  kbuf = malloc(size);
+  kbuf = malloc (size);
 	if (kbuf == NULL) {
     lock_release (&filesys_lock);
 		return -1;
 	}
-  memcpy(kbuf, buffer, size);
+  memcpy (kbuf, buffer, size);
 
   ret = file_write (finfo->file, kbuf, size);
-	free(kbuf);
+	free (kbuf);
   lock_release (&filesys_lock);
 
   return ret;
@@ -324,8 +335,10 @@ void
 seek (int fd, unsigned position)
 {
   struct file_info *finfo;
-if (!lock_held_by_current_thread(&filesys_lock))
-  lock_acquire (&filesys_lock);
+
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
+
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
@@ -341,8 +354,10 @@ tell (int fd)
 {
   struct file_info *finfo;
   unsigned ret;
-if (!lock_held_by_current_thread(&filesys_lock))
-  lock_acquire (&filesys_lock);
+
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
+
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
@@ -359,8 +374,10 @@ void
 close (int fd)
 {
   struct file_info *finfo;
-if (!lock_held_by_current_thread(&filesys_lock))
-  lock_acquire (&filesys_lock);
+
+	if (!lock_held_by_current_thread (&filesys_lock))
+		lock_acquire (&filesys_lock);
+
   finfo = get_file_info (fd);
   if (finfo == NULL) {
     lock_release (&filesys_lock);
@@ -392,23 +409,13 @@ check_user_ptr (const void *uptr, void *esp)
 	user_addr = (void *)((uintptr_t)uptr & ~(uintptr_t)0xfff);
 	spte = sup_lookup (user_addr);
 	if (spte != NULL) {
-		// DUMP_SUP_PAGE_ENTRY (spte);
 		if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE))
 			success = load_sup_data_to_frame (spte);
 		else if (spte->type == PAGE_TABLE)
 			success = true;
 	} else if ((esp - STACK_HEURISTIC) < uptr) {
-#if 0
-		printf ("(check_user_ptr) STACK GROWTH START!\n");
-		printf ("(check_user_ptr) USER ADDRESS: %p\n", uptr);
-		printf ("(check_user_ptr) ESP: %p\n", esp);
-#endif
 		success = stack_growth ((void *)uptr);
 	}
-
-	// printf ("(check_user_ptr) AFTER SUP_LOOKUP!, uptr: %p, success: %s, "
-	// 			 "spte: %s\n", uptr, (success == true) ? "TRUE" : "FALSE",
-	// 				(spte == NULL) ? "NOT FOUND" : "FOUND");
 
 	if (!success)
 		exit (-1);

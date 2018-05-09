@@ -12,9 +12,6 @@ enum type_data {
     FILE_DATA		= 1 << 0,
     SWAP_FILE		= 1 << 1, 
 		PAGE_TABLE	= 1 << 2,
-#if 0 /* Currently, we don't need this */
-    ZERO_PAGE		= 1 << 3,
-#endif
 };
 
 struct sup_page_entry {
@@ -26,9 +23,9 @@ struct sup_page_entry {
 	bool writable;									/* whether this page is writable */
 	enum type_data type;						/* data location of this entry */
 	bool alloced;										/* whether this entry has allocated frame */
-	struct hash_elem page_elem;			/* hash table element */
 	size_t sw_addr;               	/* offset address of when the data is moved
 																		 to the swap table */
+	struct hash_elem page_elem;			/* hash table element */
 };
 
 bool init_sup_table (void);

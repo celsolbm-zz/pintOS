@@ -28,7 +28,7 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 	uint8_t *kpage;
 	
 	if(!lock_held_by_current_thread(&frame_lock))
-	lock_acquire (&frame_lock);
+		lock_acquire (&frame_lock);
 
 	kpage = palloc_get_page (pal_flag);
 	if (kpage == NULL) {
@@ -48,28 +48,6 @@ get_user_frame (struct sup_page_entry *spte, enum palloc_flags pal_flag)
 	new_fte->spte = spte;
 	new_fte->owner = thread_current ();
 
-#if 0
-	struct list_elem *e;
-	struct frame_table_entry *ftet;
-	e = list_begin (&frame_table);
-	while (1) {
-		if (list_size (&frame_table) == 0)
-				break;
-
-		ftet = list_entry (e, struct frame_table_entry, frame_elem);
-		if (ftet->kpage == new_fte->kpage) {
-			if ((ftet->spte->type == PAGE_TABLE) && (ftet->spte->alloced == true))
-				list_remove (&ftet->frame_elem);
-		}
-
-		if (e == list_end (&frame_table))
-			break;
-
-		e = list_next(e);
-		if (e == list_end (&frame_table))
-			break;
-	}
-#endif
 	list_push_back (&frame_table, &new_fte->frame_elem);
 	lock_release (&frame_lock);
 
@@ -81,8 +59,9 @@ void
 free_user_frame (struct frame_table_entry *fte)
 {
 	
-	if(!lock_held_by_current_thread(&frame_lock))
-	lock_acquire (&frame_lock);
+	if (!lock_held_by_current_thread (&frame_lock))
+		lock_acquire (&frame_lock);
+
 	palloc_free_page (fte->kpage);
 	list_remove (&fte->frame_elem);
 	free (fte);
@@ -95,8 +74,9 @@ search_user_frame (void *kpage)
 	struct list_elem *e;
 	struct frame_table_entry *fte;
 
-	if(!lock_held_by_current_thread(&frame_lock))
-	lock_acquire (&frame_lock);
+	if (!lock_held_by_current_thread (&frame_lock))
+		lock_acquire (&frame_lock);
+
 	for (e = list_begin (&frame_table); e != list_end (&frame_table);
 			 e = list_next (e)) {
 		fte = list_entry (e, struct frame_table_entry, frame_elem);
@@ -133,8 +113,6 @@ evict_frame_entry (enum palloc_flags pal_flag)
 			if (pagedir_is_dirty (fte->owner->pagedir, fte->spte->upage) ||
 					(timer > 4)) {
 				/* Evict this entry (not accessed, dirty), move to swap */
-				// printf ("(evict_frame_entry) VICTIM FOUND!!!\n");
-				// DUMP_FRAME_TABLE_ENTRY (fte);
 				save_sup_data_to_swap (fte->spte, fte);
 				pagedir_clear_page (fte->owner->pagedir, fte->spte->upage);
 				palloc_free_page (fte->kpage);

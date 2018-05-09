@@ -129,6 +129,8 @@ static void
 page_fault (struct intr_frame *f) 
 {
   bool not_present;  /* True: not-present page, false: writing r/o page. */
+	bool write;		/* True: access was write, false: access was read. */
+	bool user;		/* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
 	struct sup_page_entry *spte;
 	void *user_addr;
@@ -169,6 +171,8 @@ page_fault (struct intr_frame *f)
 
   /* Determine cause. */
   not_present = (f->error_code & PF_P) == 0;
+	write = (f->error_code & PF_W) != 0;
+	user = (f->error_code & PF_U) != 0;
 
 	success = false;
 	if (not_present && is_user_vaddr (fault_addr) &&
@@ -178,22 +182,9 @@ page_fault (struct intr_frame *f)
 		spte = sup_lookup (user_addr);
 		if (spte != NULL) {
 			ASSERT (spte->type != PAGE_TABLE);
-			// DUMP_SUP_PAGE_ENTRY (spte);
-			if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE)) {	
-				//printf(" \n about to enter page fault \n");
+			if ((spte->type == FILE_DATA) || (spte->type == SWAP_FILE))
 				success = load_sup_data_to_frame (spte);
-				//spte->sw_addr=get_swap_address(spte);
-				//swap_load(spte);
-				//printf(" \n the return from get swap address is %d \n",spte->sw_addr);
-			  //block_print_stats();
-			}
 		} else if ((f->esp - STACK_HEURISTIC) < fault_addr) {
-#if 0
-			printf ("(page_fault) STACK GROWTH START!\n");
-			printf ("(page_fault) FAULT ADDRESS: %p\n", fault_addr);
-			printf ("(page_fault) USER ADDRESS: %p\n", user_addr);
-			printf ("(page_fault) ESP: %p\n", f->esp);
-#endif
 			success = stack_growth (fault_addr);
 		}
 	}
@@ -202,13 +193,8 @@ page_fault (struct intr_frame *f)
 		/* To implement virtual memory, delete the rest of the function
 			 body, and replace it with code that brings in the page to
 			 which fault_addr refers. */
-#if 0
-		bool write;		/* True: access was write, false: access was read. */
-		bool user;		/* True: access by user, false: access by kernel. */
 
-		/* Determine cause. */
-		write = (f->error_code & PF_W) != 0;
-		user = (f->error_code & PF_U) != 0;
+		exit (-1);
 
 		printf ("Page fault at %p: %s error %s page in %s context.\n",
 						fault_addr,
@@ -216,8 +202,5 @@ page_fault (struct intr_frame *f)
 						write ? "writing" : "reading",
 						user ? "user" : "kernel");
 		kill (f);
-#endif
-
-		exit (-1);
 	}
 }
