@@ -8,8 +8,8 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Celso Moraes <asura254@kaist.ac.kr>
+ChangHwan Kim <Kimbob@kaist.ac.kr>
 FirstName LastName <email@domain.example>
 
 ---- PRELIMINARIES ----
@@ -30,15 +30,37 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+
+struct sup_page_entry {
+	void *upage;										/* user page addr of this entry */
+	struct file *file;							/* associated file if any */
+	off_t file_ofs;									/* file position for this spte */
+	uint32_t read_bytes;						/* read bytes from file for this page */
+	uint32_t zero_bytes;						/* zero bytes from file for this page */
+	bool writable;									/* whether this page is writable */
+	enum type_data type;						/* data location of this entry */
+	bool alloced;										/* whether this entry has allocated frame */
+	size_t sw_addr;               	/* offset address of when the data is moved
+																		 to the swap table */
+	struct hash_elem page_elem;			/* hash table element */
+};
+
+//supplemental page entry utilized to manage the location of the data
+
+struct hash page_table;
+struct lock sup_lock;
+// page table that is implemented as hash_table
+//sup page table lock, that is used during the eviction process to make sure
+//another process do not evict frames from a previous process
 ---- ALGORITHMS ----
 
 >> A2: In a few paragraphs, describe your code for locating the frame,
 >> if any, that contains the data of a given page.
-When the program tries to access the memory for some data and discover that is
-not there a system call occurs. In the system call, a hash table called
-supplemental page table checks the user virtual page address as a key to find
+--When the program tries to access the memory for some data and discover that is
+not there a page_fault occurs. In the page_fault, a hash table named
+supplemental page table checks the user virtual page address as a hash key to find
 if any supplemental page entry matches the required user virtual address. If
-they do than the easy loading process is started, by loading the
+there is match, than the lazy loading process is started, by loading the
 information into the memory from a file or from a swap. Both of these cases
 are covered by the same function. 
 
@@ -50,18 +72,18 @@ are covered by the same function.
 
 >> A4: When two user processes both need a new frame at the same time,
 >> how are races avoided?
-We implemented a lock in the system to avoid this sort of race condition.
+--We implemented a lock in the system to avoid this sort of race condition.
 There are lock for the access of the frame table, supplemental page table and
 swap table to avoid this sort of issue.
 ---- RATIONALE ----
 
 >> A5: Why did you choose the data structure(s) that you did for
 >> representing virtual-to-physical mappings?
-We used hash table for the supplemental page table due to its versatility and
+--We used hash table for the supplemental page table due to its versatility and
 speed. For the swap table we used bitmap since it fits perfectly with the case
 of finding empty sectors within the block, and also since its fast and simple.
 For the frame table we used a list since it is a global structure (only one
-frame table in the entire pintos).
+frame table in the entire pintos) and to simplify its manipulation.
 		       PAGING TO AND FROM DISK
 		       =======================
 
@@ -71,22 +93,41 @@ frame table in the entire pintos).
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct block *swap;       /*pointer for the block struct to be the swap*/
+struct lock sw_lock;			/*lock to manage the swap table*/
+struct bitmap *sw_table;	/*bitmap to exercise the function of a swap table*/
+//swaptable data structures
+
+struct list frame_table;	/* List for frame table entry */
+//Frame table that is used to hold information of available frames
+
+struct lock frame_lock;		/* Lock for accessing frame table */
+//lock for the frame table to avoid synch issues
+
+struct frame_table_entry {
+	void *kpage;									/* Kernel virtual address of this frame */
+	struct sup_page_entry *spte;	/* Associated supplemental page table entry */
+	struct thread *owner;					/* Owner thread of this frame */
+	struct list_elem frame_elem;	/* Frame table list element */
+};
+//Frame table entry that will be organized by the frame_table list
+//each element is already explained next to it
 ---- ALGORITHMS ----
 
 >> B2: When a frame is required but none is free, some frame must be
 >> evicted.  Describe your code for choosing a frame to evict.
-When no frame can be allocated palloc_get_page will return a NULL pointer, and
+--When no frame can be allocated palloc_get_page will return a NULL pointer, and
 this will trigger in our code the call of a function named
 evict_frame_entry.This function will find a page to be evicted based on the
-dirty condition (if it is accessd or not). To avoid the evict_frame_entry
-getting stuck, we put a limiter to how many times it can run a full loop
-between the frames to decide what to evict. If the limiter reachs its value,
-then a random frame is chosen to be evicted.
+dirty condition (if it is accessed or not). To avoid the evict_frame_entry
+getting stuck on an infinte search loop, we put a limiter to how many times 
+it can run a full loop between the frames to decide what to evict. If the
+limiter reachs its value, then a random frame is chosen to be evicted.
 
 >> B3: When a process P obtains a frame that was previously used by a
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
-We have a flag on the supplemental page table entry that tells where that data
+--We have a flag on the supplemental page table entry that tells where that data
 is. It can be on the file, page table (already on memory) or in a swap. When
 the frame is evicted the data will be moved to the swap table 
 
@@ -100,7 +141,7 @@ the frame is evicted the data will be moved to the swap table
 >> particular, explain how it prevents deadlock.  (Refer to the
 >> textbook for an explanation of the necessary conditions for
 >> deadlock.)
-Deadlock is a situation where one process cannot obtain a lock because it is
+--Deadlock is a situation where one process cannot obtain a lock because it is
 waiting from a lock of another process that is waiting for a lock from the
 first process,causing the system to just stay stall. In our case we avoided
 this situation by making sure that the lock was just accessed statically by
@@ -113,7 +154,7 @@ supplemental page entries from it and consequently frame page entry.
 >> to be evicted.  How do you ensure that Q cannot access or modify
 >> the page during the eviction process?  How do you avoid a race
 >> between P evicting Q's frame and Q faulting the page back in?
-We have a lock on each thread to make sure that this situation does not
+--We have a lock on each thread to make sure that this situation does not
 happen. In order to delete a frame that is being held by a process, our lock
 system requires one thread (the process thread) to get the frame lock from the
 owner of the frame. In this way, when the lock is requested, the data from Q
@@ -123,7 +164,7 @@ is moved to the swap and it cannot access it until the lock is released
 >> the file system or swap.  How do you ensure that a second process Q
 >> cannot interfere by e.g. attempting to evict the frame while it is
 >> still being read in?
-We use a lock whenever something has to be written from the file, swap and
+--We use a lock whenever something has to be written from the file, swap and
 into the memory, therefore avoiding situations like this.
 
 >> B8: Explain how you handle access to paged-out pages that occur
@@ -131,10 +172,10 @@ into the memory, therefore avoiding situations like this.
 >> in user programs), or do you have a mechanism for "locking" frames
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
-The page_fault function on exception.c will not perform any action itself,
+--The page_fault function on exception.c will not perform any action itself,
 everything is done by functions that run outside of the exception.c program.
 When the page_fault occurs, the virtual address that was trying to be accessed
-is used a key to a hash table that is the supplmental page table. When a page
+is used as a key to a hash table that is the supplmental page table. When a page
 table entry is found, than a function to load the data into memory (either
 from file or swap, which will be determined by a flag) is called, and then the
 program can run normally. If the virtual address cannot be found on the hash
@@ -147,7 +188,7 @@ table, than the system will just fault as normally without any action.
 >> possibility for deadlock but allows for high parallelism.  Explain
 >> where your design falls along this continuum and why you chose to
 >> design it this way.
-Our system follows in the latter category, since we implemented locks for the
+--Our system follows in the latter category, since we implemented locks for the
 supplemental page table, frame page table and swap page table.Deadlock is
 avoided by calling those locks only on static functions and in an orderly way,
 therefore no unexpected call to them can occur. We also implemented time
