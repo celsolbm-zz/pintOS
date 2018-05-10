@@ -9,8 +9,7 @@
 >> Fill in the names and email addresses of your group members.
 
 Celso Moraes <asura254@kaist.ac.kr>
-ChangHwan Kim <Kimbob@kaist.ac.kr>
-FirstName LastName <email@domain.example>
+ChangHwan Kim <kimbob@kaist.ac.kr>
 
 ---- PRELIMINARIES ----
 
@@ -67,6 +66,12 @@ are covered by the same function.
 >> A3: How does your code coordinate accessed and dirty bits between
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
+
+We avoid alias issue by making kernel to access user data through
+user virtual address. Kernel needs to access user data when system call
+handler is invoked, and we changed this handler to access user data
+through provided user virtual address, not translating it to the kernel
+virtual address.
 
 ---- SYNCHRONIZATION ----
 
@@ -134,6 +139,14 @@ the frame is evicted the data will be moved to the swap table
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+We first check whether fault address is how close to the current
+stack pointer. Then, we firstly use 32 bytes for heuristic, which means
+if fault address is in arrange of stack pointer to stack pointer - 32B,
+we assumed that this needs stack growth. Why we use 32 bytes is that
+in project doc, it says PUSHA instruction and this push 32 bytes of data
+at once. But this didn't work, and we increase heuristic amount a little bit.
+So, we are using 40 bytes for stack growth heuristic.
 
 ---- SYNCHRONIZATION ----
 
