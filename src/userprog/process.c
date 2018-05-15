@@ -22,8 +22,11 @@
 #include <stdio.h>
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
+
+#ifdef VM
 #include "vm/suptable.h"
 #include "vm/swaptable.h"
+#endif
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp,
@@ -81,6 +84,7 @@ start_process (void *file_name_)
   char *save_ptr;
   file_name = strtok_r (file_name, " ", &save_ptr);
 
+#ifdef VM
 	////////////////// CELSO STUFF IS IN HERE
 
 	/* Initialize supplemental page table */
@@ -117,6 +121,7 @@ start_process (void *file_name_)
 	//blah=&bla;
 #endif
 /////////////////// end CELSO STUFF IS IN HERE
+#endif
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -222,7 +227,9 @@ process_exit (void)
     sema_up (&cur->chinfo_by_parent->exit_sema);
   }
 
+#ifdef VM
 	destroy_sup_table ();
+#endif
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -534,15 +541,33 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+#ifdef VM
       /* Create new supplemental page table entry */
 			save_sup_page (upage, file, ofs, page_read_bytes, page_zero_bytes,
 										 writable, FILE_DATA);
+			ofs += page_read_bytes;
+#else
+			uint8_t *kpage = palloc_get_page (PAL_USER);
+			if (kpage == NULL)
+				return false;
+
+			if (file_read (file, kpage, page_read_bytes) != (int)page_read_bytes) {
+				palloc_free_page (kpage);
+				return false;
+			}
+			memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+			/* Add the page to the process's address space. */
+			if (!install_page (upage, kpage, writable)) {
+				palloc_free_page (kpage);
+				return false;
+			}
+#endif
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
-			ofs += page_read_bytes;
     }
   return true;
 }
@@ -552,14 +577,28 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, const char *command, char **save_ptr) 
 {
+	uint8_t *kpage;
   bool success = false;
 
+#ifdef VM
 	/* First, create supplemental page table entry for stack page */
 	success = stack_growth (((void *)PHYS_BASE) - PGSIZE);
 	if (!success)
 		return success;
 
 	*esp = PHYS_BASE;
+#else
+	kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+	if (kpage != NULL) {
+		success = install_page (((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
+		if (success) {
+			*esp = PHYS_BASE;
+		} else {
+			palloc_free_page (kpage);
+			return success;
+		}
+	}
+#endif
 
   /* Setup stack */
   char **argv = malloc (4 * sizeof(char *));

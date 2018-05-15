@@ -12,7 +12,10 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include <string.h>
+
+#ifdef VM
 #include "vm/suptable.h"
+#endif
 
 #define MAX_ARG 3 /* Maximum number of system call arguments */
 
@@ -396,15 +399,18 @@ close (int fd)
 /*----------------------------------------------------------------------------*/
 /* Check whether user-provided pointer UPTR is in the valid address space */
 static void
-check_user_ptr (const void *uptr, void *esp)
+check_user_ptr (const void *uptr, void *esp UNUSED)
 {
+#ifdef VM
 	bool success;
 	struct sup_page_entry *spte;
 	void *user_addr;
+#endif
 
   if (!is_user_vaddr (uptr) || (uptr < BOTTOM_USER_SPACE))
 		exit (-1);
 
+#ifdef VM
 	success = false;
 	user_addr = (void *)((uintptr_t)uptr & ~(uintptr_t)0xfff);
 	spte = sup_lookup (user_addr);
@@ -419,6 +425,7 @@ check_user_ptr (const void *uptr, void *esp)
 
 	if (!success)
 		exit (-1);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 /* Check whether user-provided string is in the valid address space */

@@ -192,29 +192,6 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
-
-	  enum intr_level old_level;
-char str1[15];
-	if(lock_held_by_current_thread (lock))
-	{
-	  
-		
-	strlcpy(str1,"child-qsort",12);
-	printf(" \nthread mf name isi %sand %s",thread_name(),str1);	
-	
-	if(!strcmp(thread_name(),str1))
-	  {	
-			printf(" \n child_sqrt is equal!!! \n ");
-			//lock_release(lock);
-		
-		}
-	if(!strcmp(thread_name(),"page-merge-stk"))
-		{
-			printf("\n is equal	page_merge-stk");
-			//lock_release(lock);
-		}
-	
-	}
 	ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
@@ -251,9 +228,6 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
-  
-	
-	
 	ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
