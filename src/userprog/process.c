@@ -28,6 +28,10 @@
 #include "vm/swaptable.h"
 #endif
 
+#ifdef FILESYS
+#include "filesys/directory.h"
+#endif
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp,
   char **save_ptr);
@@ -121,6 +125,20 @@ start_process (void *file_name_)
 	//blah=&bla;
 #endif
 /////////////////// end CELSO STUFF IS IN HERE
+#endif
+
+#ifdef FILESYS
+	/* Process's initial working directory is root */
+	thread_current ()->curdir = dir_open_root ();
+	if (thread_current ()->curdir == NULL) {
+		PANIC ("CANNOT OPEN ROOT DIRECTORY FOR STARTING PROCESS!!!\n");
+		thread_exit ();
+	}
+	
+#ifdef DEBUG_FILESYS
+	printf ("SECTOR # FOR PROCESS \"%s\" IN PROCESS_START: %u\n",
+					thread_current ()->name, thread_current()->curdir->inode->sector);
+#endif
 #endif
 
   /* Initialize interrupt frame and load executable. */
@@ -577,7 +595,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, const char *command, char **save_ptr) 
 {
-	uint8_t *kpage;
   bool success = false;
 
 #ifdef VM
@@ -588,6 +605,7 @@ setup_stack (void **esp, const char *command, char **save_ptr)
 
 	*esp = PHYS_BASE;
 #else
+	uint8_t *kpage;
 	kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 	if (kpage != NULL) {
 		success = install_page (((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);

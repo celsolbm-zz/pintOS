@@ -187,7 +187,6 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
-
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -203,6 +202,7 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+#ifdef USERPROG
   /* Create child information */
   struct child_info *chinfo;
   chinfo = create_child_info ((pid_t)tid);
@@ -212,6 +212,7 @@ thread_create (const char *name, int priority,
   t->chinfo_by_parent = chinfo;
   t->parent_pid = (pid_t)thread_tid ();
 	strlcpy (t->parent_name, thread_name(), sizeof t->parent_name);
+#endif
 
   /* Add to run queue. */
   thread_unblock (t);

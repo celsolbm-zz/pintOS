@@ -5,9 +5,18 @@
 #include <list.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "userprog/process.h"
 
+#ifdef USERPROG
+#include "userprog/process.h"
+#endif
+
+#ifdef FILESYS
+#include "filesys/directory.h"
+#endif
+
+#ifdef VM
 #include <hash.h>
+#endif
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -119,13 +128,23 @@ struct thread
     int min_fd;									/* Minimum fd for this thread */
     struct list open_file;			/* Open file list */
     struct file *executable;  	/* Executable file for this process */
-#endif
 
+		/*
+		 * Project 4: File Systems
+		 */
+#ifdef FILESYS
+		struct dir *curdir;
+#endif /* FILESYS */
+
+#endif /* USERPROG */
+
+#ifdef VM
 		/*
 		 * Project 3: Virtual Memory
 		 */
 		struct hash page_table;
 		struct lock sup_lock;
+#endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
