@@ -1,12 +1,13 @@
 #include "filesys/free-map.h"
 #include <bitmap.h>
+#include "threads/malloc.h"
 #include <debug.h>
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include <stdio.h>
 static struct file *free_map_file;   /* Free map file. */
-static struct bitmap *free_map;      /* Free map, one bit per sector. */
+struct bitmap *free_map;      /* Free map, one bit per sector. */
 
 /* Initializes the free map. */
 void
@@ -33,9 +34,10 @@ free_map_allocate (size_t cnt, block_sector_t *sectorp)
 	if (sector == BITMAP_ERROR)
 		{
 			if (bitmap_count(free_map,0,block_size(fs_device),false )>= cnt)
-					printf("porra de urso");
+					coalesce();
 				
 		}
+
   if (sector != BITMAP_ERROR
       && free_map_file != NULL
       && !bitmap_write (free_map, free_map_file))
@@ -90,4 +92,23 @@ free_map_create (void)
     PANIC ("can't open free map");
   if (!bitmap_write (free_map, free_map_file))
     PANIC ("can't write free map");
+}
+
+
+void relocate(int target,int start ,size_t length)
+{
+void *re_buff;
+int n_start= target;// - bytes_to_sectors(inode->data.length);
+int i;
+i=0;
+re_buff=malloc(BLOCK_SECTOR_SIZE);
+
+while(i < length)
+	{
+		block_read(fs_device,start+i*BLOCK_SECTOR_SIZE,re_buff);
+		block_write(fs_device,n_start+i*BLOCK_SECTOR_SIZE,re_buff);
+		i++;
+	}
+
+
 }
