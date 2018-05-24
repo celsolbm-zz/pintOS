@@ -5,6 +5,10 @@
 #include "threads/synch.h"
 #include "filesys/file.h"
 
+#ifdef FILESYS
+#include "filesys/directory.h"
+#endif
+
 #define NO_PARENT (-1)
 typedef int pid_t;
 
@@ -56,6 +60,9 @@ struct child_info {
   struct semaphore exec_sema;
   struct semaphore exit_sema;;
   int exit_code;
+#ifdef FILESYS
+	struct dir *parent_dir;
+#endif
   struct list_elem child_elem;
 };
 

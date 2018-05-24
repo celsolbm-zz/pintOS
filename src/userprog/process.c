@@ -83,10 +83,13 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+	struct thread *cur;
 
   /* Extract program name */
   char *save_ptr;
   file_name = strtok_r (file_name, " ", &save_ptr);
+
+	cur = thread_current ();
 
 #ifdef VM
 	////////////////// CELSO STUFF IS IN HERE
@@ -128,16 +131,21 @@ start_process (void *file_name_)
 #endif
 
 #ifdef FILESYS
-	/* Process's initial working directory is root */
-	thread_current ()->curdir = dir_open_root ();
-	if (thread_current ()->curdir == NULL) {
+	/* Process's initial working directory is root.
+	   If parent's working directory exists, inherit that. */
+	if (cur->chinfo_by_parent->parent_dir != NULL)
+		cur->curdir = dir_reopen (cur->chinfo_by_parent->parent_dir); 
+	else
+		cur->curdir = dir_open_root ();
+
+	if (cur->curdir == NULL) {
 		PANIC ("CANNOT OPEN ROOT DIRECTORY FOR STARTING PROCESS!!!\n");
 		thread_exit ();
 	}
 	
 #ifdef DEBUG_FILESYS
 	printf ("SECTOR # FOR PROCESS \"%s\" IN PROCESS_START: %u\n",
-					thread_current ()->name, thread_current()->curdir->inode->sector);
+					cur->name, cur->curdir->inode->sector);
 #endif
 #endif
 
@@ -148,12 +156,12 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, &save_ptr);
   if (success)
-    thread_current ()->chinfo_by_parent->load_status = LOAD_SUCCESS;
+    cur->chinfo_by_parent->load_status = LOAD_SUCCESS;
   else
-    thread_current ()->chinfo_by_parent->load_status = LOAD_FAIL;
+    cur->chinfo_by_parent->load_status = LOAD_FAIL;
 
   /* Signal parent that is waiting for load status update */
-  sema_up (&thread_current ()->chinfo_by_parent->exec_sema);
+  sema_up (&cur->chinfo_by_parent->exec_sema);
 
 #if 0 /* debug */
   printf("(start_process) Process %s start!\n", file_name);
@@ -234,6 +242,10 @@ process_exit (void)
 
   /* Destroy child list */
   destroy_child_list ();
+
+#ifdef FILESYS
+	dir_close (cur->curdir);
+#endif
 
   if (check_process_alive (cur->parent_pid) && cur->chinfo_by_parent &&
       cur->executable) {
@@ -721,6 +733,9 @@ create_child_info (pid_t pid)
   sema_init (&chinfo->exec_sema, 0);
   sema_init (&chinfo->exit_sema, 0);
   chinfo->exit_code = 0;
+#ifdef FILESYS
+	chinfo->parent_dir = cur->curdir;
+#endif
 
   list_push_back (&cur->child_list, &chinfo->child_elem);
   
