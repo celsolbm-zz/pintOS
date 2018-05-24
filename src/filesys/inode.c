@@ -6,7 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
-
+#include <stdio.h>
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
@@ -76,7 +76,6 @@ inode_create (block_sector_t sector, off_t length)
   bool success = false;
 
   ASSERT (length >= 0);
-
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
@@ -203,7 +202,6 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
-
   while (size > 0) 
     {
       /* Disk sector to read, starting byte offset within sector. */
@@ -343,3 +341,24 @@ inode_length (const struct inode *inode)
 {
   return inode->data.length;
 }
+
+void coalesce(void)
+{	
+	struct list_elem *e;
+  struct inode *inode;
+	size_t target=0;
+  int cnt=0; //remove later
+  for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
+       e = list_next (e)) 
+    {cnt=cnt+1;
+      inode = list_entry (e, struct inode, elem);
+			if (inode->data.start==0)
+			{printf("\n start here on the first");
+			printf( " and cnt is %d \n",cnt);
+			}
+		printf("\n inode data start %d \n",inode->data.start);
+		printf("\n inode length %d \n",inode->data.length);
+		printf("\n this length in sectors is %d \n", bytes_to_sectors(inode->data.length));
+		}
+}
+

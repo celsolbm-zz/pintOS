@@ -4,7 +4,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
-
+#include <stdio.h>
 static struct file *free_map_file;   /* Free map file. */
 static struct bitmap *free_map;      /* Free map, one bit per sector. */
 
@@ -27,7 +27,15 @@ free_map_init (void)
 bool
 free_map_allocate (size_t cnt, block_sector_t *sectorp)
 {
-  block_sector_t sector = bitmap_scan_and_flip (free_map, 0, cnt, false);
+ 	printf(" \n number of bits sets is %d \n" , bitmap_count(free_map,0,98,false));
+	block_sector_t sector = bitmap_scan_and_flip (free_map, 0, cnt, false);
+	coalesce();
+	if (sector == BITMAP_ERROR)
+		{
+			if (bitmap_count(free_map,0,block_size(fs_device),false )>= cnt)
+					printf("porra de urso");
+				
+		}
   if (sector != BITMAP_ERROR
       && free_map_file != NULL
       && !bitmap_write (free_map, free_map_file))
