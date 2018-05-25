@@ -320,28 +320,31 @@ inode_length (const struct inode *inode)
 {
   return inode->data.length;
 }
-
+/*coalesce if there is external fragmentation */
 void coalesce(void)
 {	
 	struct list_elem *e;
   struct inode *inode;
-	size_t target=0;
-  int cnt=0;
+	size_t target = 0;
+  int cnt = 0;
 	list_reverse(&open_inodes);
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e)) 
-    {cnt=cnt+1;
-    inode = list_entry (e, struct inode, elem);
-		if (cnt!=1)
-			if (inode->data.start==target)
-			{irelocate(inode,target);
-		  bitmap_set_multiple(free_map,inode->data.start,inode->data.length,false);
-		  inode->data.start = target;
-			}
+    {
+			cnt=cnt+1;
+			inode = list_entry (e, struct inode, elem);
+			if (cnt!=1)
+				if (inode->data.start==target)
+					{
+						irelocate(inode,target);
+						bitmap_set_multiple(free_map,inode->data.start,inode->data.length,false);
+						inode->data.start = target;
+					}	
+#if 0
 		printf("\n inode data start %d \n",inode->data.start);
 		printf("\n this length in sectors is %d \n", bytes_to_sectors(inode->data.length));
-		target=inode->data.start+    bytes_to_sectors(inode->data.length) ;
-		printf("\n targer is %d \n ",target);
+#endif
+			target=inode->data.start+    bytes_to_sectors(inode->data.length) ;
 		}
 	list_reverse(&open_inodes);
 }
