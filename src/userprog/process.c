@@ -133,15 +133,11 @@ start_process (void *file_name_)
 #ifdef FILESYS
 	/* Process's initial working directory is root.
 	   If parent's working directory exists, inherit that. */
-	if (cur->chinfo_by_parent->parent_dir != NULL)
-		cur->curdir = dir_reopen (cur->chinfo_by_parent->parent_dir); 
-	else
-		cur->curdir = dir_open_root ();
-
-	if (cur->curdir == NULL) {
+	cur->curdir = (cur->chinfo_by_parent->parent_dir != NULL) ?
+								dir_reopen (cur->chinfo_by_parent->parent_dir) :
+								dir_open_root ();
+	if (cur->curdir == NULL)
 		PANIC ("CANNOT OPEN ROOT DIRECTORY FOR STARTING PROCESS!!!\n");
-		thread_exit ();
-	}
 	
 #ifdef DEBUG_FILESYS
 	printf ("SECTOR # FOR PROCESS \"%s\" IN PROCESS_START: %u\n",

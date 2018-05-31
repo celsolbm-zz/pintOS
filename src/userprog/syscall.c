@@ -117,6 +117,36 @@ syscall_handler (struct intr_frame *f)
       get_sysarg (f, &sysarg[0], 1);
       close (sysarg[0]);
       break;
+
+#ifdef FILESYS
+		case SYS_CHDIR:
+      get_sysarg (f, &sysarg[0], 1);
+			check_user_string ((const char *)sysarg[0], f->esp);
+			f->eax = chdir ((const char *)sysarg[0]);
+			break;
+
+		case SYS_MKDIR:
+      get_sysarg (f, &sysarg[0], 1);
+			check_user_string ((const char *)sysarg[0], f->esp);
+			f->eax = mkdir ((const char *)sysarg[0]);
+			break;
+
+		case SYS_READDIR:
+      get_sysarg (f, &sysarg[0], 2);
+			check_user_string ((const char *)sysarg[1], f->esp);
+			f->eax = readdir (sysarg[0], (char *)sysarg[1]);
+			break;
+
+		case SYS_ISDIR:
+      get_sysarg (f, &sysarg[0], 1);
+      f->eax = isdir (sysarg[0]);
+			break;
+
+		case SYS_INUMBER:
+      get_sysarg (f, &sysarg[0], 1);
+      f->eax = inumber (sysarg[0]);
+			break;
+#endif
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -393,13 +423,50 @@ close (int fd)
   lock_release (&filesys_lock);
 }
 /*----------------------------------------------------------------------------*/
+#ifdef FILESYS
+bool
+chdir (const char *dir)
+{
+	return false;
+}
+/*----------------------------------------------------------------------------*/
+bool
+mkdir (const char *dir)
+{
+	return false;
+}
+/*----------------------------------------------------------------------------*/
+bool
+readdir (int fd, char *name)
+{
+	return false;
+}
+/*----------------------------------------------------------------------------*/
+bool
+isdir (int fd)
+{
+	return false;
+}
+/*----------------------------------------------------------------------------*/
+int
+inumber (int fd)
+{
+	return -1;
+}
+/*----------------------------------------------------------------------------*/
+#endif /* FILESYS */
 /* 
  * Helper functions
  */
 /*----------------------------------------------------------------------------*/
 /* Check whether user-provided pointer UPTR is in the valid address space */
+#ifdef VM
+static void
+check_user_ptr (const void *uptr, void *esp)
+#else
 static void
 check_user_ptr (const void *uptr, void *esp UNUSED)
+#endif
 {
 #ifdef VM
 	bool success;

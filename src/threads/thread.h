@@ -129,10 +129,10 @@ struct thread
     struct list open_file;			/* Open file list */
     struct file *executable;  	/* Executable file for this process */
 
+#ifdef FILESYS
 		/*
 		 * Project 4: File Systems
 		 */
-#ifdef FILESYS
 		struct dir *curdir;
 #endif /* FILESYS */
 
