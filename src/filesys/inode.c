@@ -1,14 +1,24 @@
 #include "filesys/inode.h"
+#include <list.h>
 #include <debug.h>
 #include <round.h>
 #include <string.h>
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
-#include "filesys/free-map.h"
-#include <stdio.h>
+
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
+
+/* On-disk inode.
+   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
+struct inode_disk
+  {
+    block_sector_t start;               /* First data sector. */
+    off_t length;                       /* File size in bytes. */
+    unsigned magic;                     /* Magic number. */
+    uint32_t unused[125];               /* Not used. */
+  };
 
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
@@ -17,6 +27,17 @@ bytes_to_sectors (off_t size)
 {
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
 }
+
+/* In-memory inode. */
+struct inode 
+  {
+    struct list_elem elem;              /* Element in inode list. */
+    block_sector_t sector;              /* Sector number of disk location. */
+    int open_cnt;                       /* Number of openers. */
+    bool removed;                       /* True if deleted, false otherwise. */
+    int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+    struct inode_disk data;             /* Inode content. */
+  };
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
@@ -55,6 +76,7 @@ inode_create (block_sector_t sector, off_t length)
   bool success = false;
 
   ASSERT (length >= 0);
+
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
@@ -181,6 +203,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
+
   while (size > 0) 
     {
       /* Disk sector to read, starting byte offset within sector. */
@@ -320,33 +343,3 @@ inode_length (const struct inode *inode)
 {
   return inode->data.length;
 }
-/*coalesce if there is external fragmentation */
-void coalesce(void)
-{	
-	struct list_elem *e;
-  struct inode *inode;
-	size_t target = 0;
-  int cnt = 0;
-	list_reverse(&open_inodes);
-  for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
-       e = list_next (e)) 
-    {
-			cnt=cnt+1;
-			inode = list_entry (e, struct inode, elem);
-			if (cnt!=1)
-				if (inode->data.start==target)
-					{
-						irelocate(inode,target);
-						bitmap_set_multiple(free_map,inode->data.start,inode->data.length,false);
-						inode->data.start = target;
-					}	
-#if 0
-		printf("\n inode data start %d \n",inode->data.start);
-		printf("\n this length in sectors is %d \n", bytes_to_sectors(inode->data.length));
-#endif
-			target=inode->data.start+    bytes_to_sectors(inode->data.length) ;
-		}
-	list_reverse(&open_inodes);
-}
-
-
