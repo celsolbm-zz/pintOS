@@ -5,12 +5,22 @@
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
 
+#include "threads/thread.h"
+
+/* A directory. */
+struct dir 
+  {
+    struct inode *inode;                /* Backing store. */
+    off_t pos;                          /* Current position. */
+  };
+
 /* A single directory entry. */
 struct dir_entry 
   {
-    block_sector_t inode_sector;        /* Sector number of header. */
-    char name[NAME_MAX + 1];            /* Null terminated file name. */
-    bool in_use;                        /* In use or free? */
+		block_sector_t inode_sector;	/* Sector number of header. */
+    char name[NAME_MAX + 1];			/* Null terminated file name. */
+		bool is_dir;									/* Is this entry for another directory? */
+    bool in_use;									/* In use or free? */
   };
 
 /* Creates a directory with space for ENTRY_CNT entries in the
@@ -116,10 +126,10 @@ dir_lookup (const struct dir *dir, const char *name,
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
-  if (lookup (dir, name, &e, NULL))
-    *inode = inode_open (e.inode_sector);
-  else
-    *inode = NULL;
+	if (lookup (dir, (const char *)name, &e, NULL))
+		*inode = inode_open (e.inode_sector);
+	else
+		*inode = NULL;
 
   return *inode != NULL;
 }
@@ -226,3 +236,65 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
     }
   return false;
 }
+/*----------------------------------------------------------------------------*/
+#if 0
+/* Parse directory name and return final directory */
+struct dir *
+dir_getdir (const char *_path)
+{
+	char path[strlen (_path) + 1], *save_ptr;
+	char *token, *next_token;
+	struct dir *dir;
+	struct inode *inode;
+
+	strlcpy (path, _path, strlen(_path) + 1);
+	
+	/* Check whether path is relative or absolute */
+	if ((path[0] == '/') || (thread_current ()->curdir == NULL))
+		dir = dir_open_root ();
+	else
+		dir = dir_reopen (thread_current ()->curdir);
+
+	token = strtok_r (path, "/", &save_ptr);
+	for (next_token = strtok_r (NULL, "/", &save_ptr);
+			 next_token != NULL;
+			 next_token = strtok_r (NULL, "/", &save_ptr)) {
+		
+		/* If token is ".", current directory */
+		if (strcmp (token, ".") == 0) {
+			if (inode_is_removed (dir->inode))
+				return NULL;
+			continue;
+		}
+		else if (strcmp(token, "..") == 0) {
+			if (inode_is_removed (dir->inode))
+				return NULL;
+
+			inode = inode_open (inode_get_parent (dir->inode));
+			dir_close (dir);
+			dir = dir_open (inode);
+		}
+		else {
+			if (!dir_lookup (dir, token, &inode)) {
+				/* If directory not exists, return NULL */
+				dir_close (dir);
+				return NULL;
+			}
+
+			if (inode_is_dir (inode) == 0) {
+				/* If path indicateds file, return NULL */
+				dir_close (dir);
+				return NULL;
+			}
+
+			dir_close (dir);
+			dir = dir_open (inode);
+		}
+
+		token = next_token;
+	}
+
+	return dir;
+}
+#endif
+/*----------------------------------------------------------------------------*/

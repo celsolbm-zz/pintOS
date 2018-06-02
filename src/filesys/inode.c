@@ -1,11 +1,12 @@
 #include "filesys/inode.h"
-#include <list.h>
 #include <debug.h>
 #include <round.h>
 #include <string.h>
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+
+#include "threads/synch.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -17,16 +18,9 @@ struct inode_disk
     block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+		uint32_t is_directory;							/* Is this inode for directory? */
+    uint32_t unused[124];               /* Not used. */
   };
-
-/* Returns the number of sectors to allocate for an inode SIZE
-   bytes long. */
-static inline size_t
-bytes_to_sectors (off_t size)
-{
-  return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
-}
 
 /* In-memory inode. */
 struct inode 
@@ -37,7 +31,16 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+		struct lock inode_lock;							/* Inode lock for synchronization */
   };
+
+/* Returns the number of sectors to allocate for an inode SIZE
+   bytes long. */
+static inline size_t
+bytes_to_sectors (off_t size)
+{
+  return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
+}
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
@@ -343,3 +346,32 @@ inode_length (const struct inode *inode)
 {
   return inode->data.length;
 }
+/*----------------------------------------------------------------------------*/
+/* Return inode is for directory or not */
+uint32_t
+inode_is_dir (struct inode *inode)
+{
+	return inode->data.is_directory;
+}
+/*----------------------------------------------------------------------------*/
+/* Return inode is removed or not */
+bool
+inode_is_removed (struct inode *inode)
+{
+	return inode->removed;
+}
+/*----------------------------------------------------------------------------*/
+/* Acquire lock of inode */
+void
+inode_lock_acquire (struct inode *inode)
+{
+	lock_acquire (&inode->inode_lock);
+}
+/*----------------------------------------------------------------------------*/
+/* Acquire lock of inode */
+void
+inode_lock_release (struct inode *inode)
+{
+	lock_release (&inode->inode_lock);
+}
+/*----------------------------------------------------------------------------*/

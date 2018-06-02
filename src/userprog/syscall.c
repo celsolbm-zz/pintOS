@@ -13,6 +13,11 @@
 #include "filesys/file.h"
 #include <string.h>
 
+#ifdef FILESYS
+#include "filesys/directory.h"
+#include "filesys/inode.h"
+#endif
+
 #ifdef VM
 #include "vm/suptable.h"
 #endif
@@ -433,6 +438,35 @@ chdir (const char *dir)
 bool
 mkdir (const char *dir)
 {
+	struct thread *cur;
+	struct dir *search_dir;			/* directory where searching occurs */
+	struct inode *inode;
+	bool abs_path;							/* is path argument absolute? */
+
+	cur = thread_current ();
+	abs_path = (dir[0] == '/');
+
+	/* Check whether path is absolute or not */
+	search_dir = abs_path ? dir_open_root () : cur->curdir;
+	
+	/* Check whether directory DIR already exists */
+	if (dir_lookup ((const struct dir *)search_dir, dir, &inode))
+		return false;
+
+	return false;
+
+#if 0
+	/* Search through directory tree */
+	for (dir_name = strtok_r (dir_name, "/", &save_ptr);
+			 dir_name != NULL;
+			 dir_name = strtok_r (NULL, "/", &save_ptr)) {
+		if (strlen (save_ptr) != 0) {
+			
+		}
+	}
+	return false;
+#endif
+
 	return false;
 }
 /*----------------------------------------------------------------------------*/

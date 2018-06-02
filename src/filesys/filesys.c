@@ -48,12 +48,13 @@ filesys_create (const char *_name, off_t initial_size)
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
   bool success;
-#if 0
 	char *name, *save_ptr;
 	struct inode *inode;
 
+#if 0
 	name = (char *)_name;
 	name = strtok_r (name, "/", &save_ptr);
+	printf ("(filesys_create) name divided by /: %s\n", name);
 #endif
 	
 	success = (dir != NULL
