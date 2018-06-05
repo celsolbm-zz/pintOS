@@ -262,7 +262,7 @@ parse_dir_name (const char *_path)
 
 	path = malloc (sizeof(char) * (strlen (_path) + 1));
 	if (path == NULL)
-		PANIC ("(parse_dir_name) Can't allocate memory for path name");
+		PANIC ("<parse_dir_name> Can't allocate memory for path name");
 
 	cur = thread_current ();
 
@@ -275,25 +275,30 @@ parse_dir_name (const char *_path)
 
 	/* Parse passed path name */
 #ifdef DEBUG_FILESYS
-	printf ("parsing start, path[0]: %c\n", path[0]);
+	printf ("<parse_dir_name> parsing start, path[0]: %c\n", path[0]);
 #endif
 	cur_name = strtok_r (path, "/", &save_ptr);
-	while (cur_name != NULL) {
+	for (next_name = strtok_r (NULL, "/", &save_ptr);
+			 next_name != NULL;
+			 next_name = strtok_r (NULL, "/", &save_ptr)) {
 #ifdef DEBUG_FILESYS
-		printf ("In while statement, ");
-		printf ("cur_name: %s\n", cur_name);
+		printf ("<parse_dir_name> In while statement, ");
+		printf ("<parse_dir_name> cur_name: %s\n", cur_name);
 #endif
-		next_name = strtok_r (NULL, "/", &save_ptr);
 
 		if (!strcmp (cur_name, ".")) {
 			/* Read from current working directory */
-			if (inode_is_removed (ret_dir->inode))
+			if (inode_is_removed (ret_dir->inode)) {
+				free (path);
 				return NULL;
+			}
 		}
 		else if (!strcmp (cur_name, "..")) {
 			/* Read from current working directory's parent directory */
-			if (inode_is_removed (ret_dir->inode))
+			if (inode_is_removed (ret_dir->inode)) {
+				free (path);
 				return NULL;
+			}
 
 			/* Open current directory's parent directory */
 			/* XXX */
@@ -302,15 +307,17 @@ parse_dir_name (const char *_path)
 			/* Whether cur_name is in the current directory */
 			if (!dir_lookup (ret_dir, cur_name, &inode)) {
 #ifdef DEBUG_FILESYS
-				printf ("Can't find %s in directory\n", cur_name);
+				printf ("<parse_dir_name> Can't find %s in directory\n", cur_name);
 #endif
 				dir_close (ret_dir);
+				free (path);
 				return NULL;
 			}
 
 			/* Whether cur_name indicates file */
 			if (!inode_is_dir (inode)) {
 				dir_close (ret_dir);
+				free (path);
 				return NULL;
 			}
 
@@ -323,6 +330,49 @@ parse_dir_name (const char *_path)
 
 	free (path);
 
+#ifdef DEBUG_FILESYS
+	printf ("<parse_dir_name> parsing end\n");
+#endif
+
 	return ret_dir;
+}
+/*----------------------------------------------------------------------------*/
+/* Parse path name and return last destination name.
+   Return value is malloced value, so caller must free that value */
+char *
+get_target_name (const char *path)
+{
+	char *target;
+	bool dir_name;
+	int i;
+
+	/* Check whether path is for directory or file */
+	dir_name = false;
+	i = strlen (path) - 1;
+	if (path[i] == '/') {
+		i--;
+		dir_name = true;
+	}
+
+	while ((i != 0) && (path[i] != '/'))
+		i--;
+
+	target = malloc (sizeof(char) * (strlen (path) + 1));
+	if (target == NULL)
+		PANIC ("<parse_dir_name> Can't allocate memory for target name");
+
+	if (i == 0)
+		strlcpy (target, path, strlen (path) + 1);
+	else
+		strlcpy (target, path + (i + 1), strlen (path + (i + 1)) + 1);
+
+	/* If path is directory, delete last '/' character */
+	if (dir_name)
+		target[strlen (target) - 1] = 0;
+
+#ifdef DEBUG_FILESYS
+	printf ("<get_target_name> target: %s\n", target);
+#endif
+	return target;
 }
 /*----------------------------------------------------------------------------*/

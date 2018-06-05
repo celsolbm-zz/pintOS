@@ -16,6 +16,10 @@
 #ifdef FILESYS
 #include "filesys/directory.h"
 #include "filesys/inode.h"
+#include "filesys/free-map.h"
+
+#define INITIAL_FILE_NUM	16
+#define INVALID_SECTOR		0xFFFFFFFF
 #endif
 
 #ifdef VM
@@ -438,30 +442,30 @@ chdir (const char *dir)
 bool
 mkdir (const char *dir)
 {
-	struct dir *new_dir;				/* directory to be made */
+	struct dir *parent_dir;		/* parent dir of dir to be made */
+	char *target_name;
 	struct inode *inode;
+	block_sector_t sector;
+	bool success;
 
-	new_dir = parse_dir_name (dir);
-	
-#if 0
-	/* Check whether directory DIR already exists */
-	if (dir_lookup ((const struct dir *)search_dir, dir, &inode))
-		return false;
+	parent_dir = parse_dir_name (dir);
+	target_name = get_target_name (dir);
+	sector = INVALID_SECTOR;
+	success = (parent_dir != NULL
+						 && !dir_lookup (parent_dir, target_name, &inode)
+						 && free_map_allocate (1, &sector)
+						 && dir_create (sector, INITIAL_FILE_NUM)
+						 && dir_add (parent_dir, target_name, sector));
 
-	return false;
+	if (!success && (sector != INVALID_SECTOR))
+		free_map_release (sector, 1);
 
-	/* Search through directory tree */
-	for (dir_name = strtok_r (dir_name, "/", &save_ptr);
-			 dir_name != NULL;
-			 dir_name = strtok_r (NULL, "/", &save_ptr)) {
-		if (strlen (save_ptr) != 0) {
-			
-		}
-	}
-	return false;
-#endif
+	if (parent_dir != NULL)
+		dir_close (parent_dir);
 
-	return false;
+	free (target_name);
+
+	return success;
 }
 /*----------------------------------------------------------------------------*/
 bool
