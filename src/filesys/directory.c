@@ -303,7 +303,8 @@ parse_dir_name (const char *_path)
 			 next_name = strtok_r (NULL, "/", &save_ptr)) {
 #ifdef DEBUG_FILESYS
 		printf ("<parse_dir_name> In while statement, ");
-		printf ("<parse_dir_name> cur_name: %s\n", cur_name);
+		printf ("<parse_dir_name> cur_name: %s, next_name: %s\n",
+						cur_name, next_name);
 #endif
 
 		if (!strcmp (cur_name, ".")) {
@@ -343,6 +344,9 @@ parse_dir_name (const char *_path)
 				return NULL;
 			}
 
+#ifdef DEBUG_FILESYS
+			printf ("<parse_dir_name> Move into directory %s\n", cur_name);
+#endif
 			dir_close (ret_dir);
 			ret_dir = dir_open (inode);
 		}
@@ -361,16 +365,12 @@ char *
 get_target_name (const char *path)
 {
 	char *target;
-	bool dir_name;
 	int i;
 
 	/* Check whether path is for directory or file */
-	dir_name = false;
 	i = strlen (path) - 1;
-	if (path[i] == '/') {
+	if (path[i] == '/')
 		i--;
-		dir_name = true;
-	}
 
 	while ((i != 0) && (path[i] != '/'))
 		i--;
@@ -383,10 +383,6 @@ get_target_name (const char *path)
 		strlcpy (target, path, strlen (path) + 1);
 	else
 		strlcpy (target, path + (i + 1), strlen (path + (i + 1)) + 1);
-
-	/* If path is directory, delete last '/' character */
-	if (dir_name)
-		target[strlen (target) - 1] = 0;
 
 #ifdef DEBUG_FILESYS
 	printf ("<get_target_name> target: %s\n", target);

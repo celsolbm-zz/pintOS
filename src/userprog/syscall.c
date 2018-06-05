@@ -468,6 +468,9 @@ mkdir (const char *dir)
 
 	parent_dir = parse_dir_name (dir);
 	target_name = get_target_name (dir);
+	if (target_name[strlen (target_name) - 1] == '/')
+		target_name[strlen (target_name) - 1] = 0;
+
 	sector = INVALID_SECTOR;
 	success = (parent_dir != NULL
 						 && !dir_lookup (parent_dir, target_name, &inode)

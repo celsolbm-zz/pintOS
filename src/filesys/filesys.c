@@ -7,6 +7,8 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 
+#include "threads/malloc.h"
+
 /* Partition that contains the file system. */
 struct block *fs_device;
 
@@ -60,6 +62,7 @@ filesys_create (const char *_name, off_t initial_size)
     free_map_release (inode_sector, 1);
 
   dir_close (dir);
+	free (target_name);
 
   return success;
 }
@@ -76,9 +79,18 @@ filesys_open (const char *name)
 	char *target_name = get_target_name (name);
   struct inode *inode = NULL;
 
-  if (dir != NULL)
+	if (target_name[strlen (target_name) - 1] == '/') {
+		dir = dir_reopen (dir);
+		inode = dir_get_inode (dir);
+	}
+	else if (dir != NULL) {
     dir_lookup (dir, name, &inode);
+	}
+
   dir_close (dir);
+	free (target_name);
+	if (inode_is_removed (inode))
+		return NULL;
 
   return file_open (inode);
 }
@@ -90,9 +102,12 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
+  struct dir *dir = parse_dir_name (name);
+	char *target_name = get_target_name (name);
+  bool success = dir != NULL && dir_remove (dir, target_name);
+
   dir_close (dir); 
+	free (target_name);
 
   return success;
 }
