@@ -89,6 +89,10 @@ filesys_open (const char *name)
 
   dir_close (dir);
 	free (target_name);
+
+	if (inode == NULL)
+		return NULL;
+
 	if (inode_is_removed (inode))
 		return NULL;
 

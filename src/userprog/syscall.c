@@ -218,10 +218,11 @@ bool
 create (const char *file, unsigned initial_size)
 {
   bool ret;
-	if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
+
+	if (file == NULL)
+		exit (-1);
+
   ret = filesys_create (file, (off_t)initial_size);
-  lock_release (&filesys_lock);
 
   return ret;
 }
@@ -246,14 +247,9 @@ open (const char *file)
   struct file_info *finfo;
   struct file *temp_file;
 
-	if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
-
   temp_file = filesys_open (file);
-  if (temp_file == NULL) {
-    lock_release (&filesys_lock);
+  if (temp_file == NULL)
 		return -1;
-  }
 
   finfo = malloc (sizeof(struct file_info));
   if (finfo == NULL) {
@@ -265,7 +261,6 @@ open (const char *file)
   finfo->file = temp_file;
 
   list_push_back (&cur->open_file, &finfo->file_elem);
-  lock_release (&filesys_lock);
 
   return finfo->fd;
 }
@@ -498,19 +493,29 @@ readdir (int fd, char *name)
 bool
 isdir (int fd)
 {
-	return false;
+  struct file_info *finfo;
+	struct inode *inode;
+
+	finfo = get_file_info (fd);
+	inode = file_get_inode (finfo->file);
+
+	return inode_is_dir (inode);
 }
 /*----------------------------------------------------------------------------*/
 int
 inumber (int fd)
 {
-	return -1;
+  struct file_info *finfo;
+	struct inode *inode;
+
+	finfo = get_file_info (fd);
+	inode = file_get_inode (finfo->file);
+
+	return inode_get_inumber (inode);
 }
-/*----------------------------------------------------------------------------*/
 #endif /* FILESYS */
-/* 
- * Helper functions
- */
+/*----------------------------------------------------------------------------*/
+/* Helper functions																														*/
 /*----------------------------------------------------------------------------*/
 /* Check whether user-provided pointer UPTR is in the valid address space */
 #ifdef VM

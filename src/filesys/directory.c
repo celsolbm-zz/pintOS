@@ -22,6 +22,8 @@ struct dir_entry
     bool in_use;									/* In use or free? */
   };
 
+static bool dir_is_empty (struct inode *);
+
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
 bool
@@ -236,6 +238,9 @@ dir_remove (struct dir *dir, const char *name)
   if (inode == NULL)
     goto done;
 
+	if (inode_is_dir (inode) && !dir_is_empty (inode))
+		goto done;
+
   /* Erase directory entry. */
   e.in_use = false;
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e) 
@@ -367,6 +372,14 @@ get_target_name (const char *path)
 	char *target;
 	int i;
 
+	target = malloc (sizeof(char) * (strlen (path) + 1));
+
+	/* If path length 0, then return empty string */
+	if (strlen (path) == 0) {
+		strlcpy (target, "", 1);
+		return target;
+	}
+
 	/* Check whether path is for directory or file */
 	i = strlen (path) - 1;
 	if (path[i] == '/')
@@ -375,7 +388,6 @@ get_target_name (const char *path)
 	while ((i != 0) && (path[i] != '/'))
 		i--;
 
-	target = malloc (sizeof(char) * (strlen (path) + 1));
 	if (target == NULL)
 		PANIC ("<parse_dir_name> Can't allocate memory for target name");
 
@@ -388,5 +400,20 @@ get_target_name (const char *path)
 	printf ("<get_target_name> target: %s\n", target);
 #endif
 	return target;
+}
+/*----------------------------------------------------------------------------*/
+static bool
+dir_is_empty (struct inode *inode)
+{
+	struct dir_entry e;
+	off_t ofs;
+
+	for (ofs = 0; inode_read_at (inode, &e, sizeof(e), ofs) == sizeof(e);
+			 ofs += sizeof(e))  {
+		if (e.in_use)
+			return false;
+	}
+
+	return true;
 }
 /*----------------------------------------------------------------------------*/
