@@ -279,6 +279,8 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   return false;
 }
 /*----------------------------------------------------------------------------*/
+/* Added functions																														*/
+/*----------------------------------------------------------------------------*/
 /* Parse directory name and return final directory */
 struct dir *
 parse_dir_name (const char *_path)

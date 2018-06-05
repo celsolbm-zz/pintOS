@@ -14,6 +14,7 @@ struct block *fs_device;
 
 static void do_format (void);
 
+/*----------------------------------------------------------------------------*/
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
 void
@@ -31,7 +32,7 @@ filesys_init (bool format)
 
   free_map_open ();
 }
-
+/*----------------------------------------------------------------------------*/
 /* Shuts down the file system module, writing any unwritten data
    to disk. */
 void
@@ -39,7 +40,7 @@ filesys_done (void)
 {
   free_map_close ();
 }
-
+/*----------------------------------------------------------------------------*/
 /* Creates a file named NAME with the given INITIAL_SIZE.
    Returns true if successful, false otherwise.
    Fails if a file named NAME already exists,
@@ -66,7 +67,7 @@ filesys_create (const char *_name, off_t initial_size)
 
   return success;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
@@ -98,7 +99,7 @@ filesys_open (const char *name)
 
   return file_open (inode);
 }
-
+/*----------------------------------------------------------------------------*/
 /* Deletes the file named NAME.
    Returns true if successful, false on failure.
    Fails if no file named NAME exists,
@@ -115,7 +116,7 @@ filesys_remove (const char *name)
 
   return success;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Formats the file system. */
 static void
 do_format (void)
@@ -127,3 +128,4 @@ do_format (void)
   free_map_close ();
   printf ("done.\n");
 }
+/*----------------------------------------------------------------------------*/

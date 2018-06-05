@@ -8,6 +8,7 @@
 static struct file *free_map_file;   /* Free map file. */
 static struct bitmap *free_map;      /* Free map, one bit per sector. */
 
+/*----------------------------------------------------------------------------*/
 /* Initializes the free map. */
 void
 free_map_init (void) 
@@ -18,7 +19,7 @@ free_map_init (void)
   bitmap_mark (free_map, FREE_MAP_SECTOR);
   bitmap_mark (free_map, ROOT_DIR_SECTOR);
 }
-
+/*----------------------------------------------------------------------------*/
 /* Allocates CNT consecutive sectors from the free map and stores
    the first into *SECTORP.
    Returns true if successful, false if not enough consecutive
@@ -39,7 +40,7 @@ free_map_allocate (size_t cnt, block_sector_t *sectorp)
     *sectorp = sector;
   return sector != BITMAP_ERROR;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Makes CNT sectors starting at SECTOR available for use. */
 void
 free_map_release (block_sector_t sector, size_t cnt)
@@ -48,7 +49,7 @@ free_map_release (block_sector_t sector, size_t cnt)
   bitmap_set_multiple (free_map, sector, cnt, false);
   bitmap_write (free_map, free_map_file);
 }
-
+/*----------------------------------------------------------------------------*/
 /* Opens the free map file and reads it from disk. */
 void
 free_map_open (void) 
@@ -59,14 +60,14 @@ free_map_open (void)
   if (!bitmap_read (free_map, free_map_file))
     PANIC ("can't read free map");
 }
-
+/*----------------------------------------------------------------------------*/
 /* Writes the free map to disk and closes the free map file. */
 void
 free_map_close (void) 
 {
   file_close (free_map_file);
 }
-
+/*----------------------------------------------------------------------------*/
 /* Creates a new free map file on disk and writes the free map to
    it. */
 void
@@ -83,3 +84,4 @@ free_map_create (void)
   if (!bitmap_write (free_map, free_map_file))
     PANIC ("can't write free map");
 }
+/*----------------------------------------------------------------------------*/

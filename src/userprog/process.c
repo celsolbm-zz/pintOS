@@ -36,6 +36,7 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp,
   char **save_ptr);
 
+/*----------------------------------------------------------------------------*/
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -74,7 +75,7 @@ process_execute (const char *file_name)
 	palloc_free_page (cmd_name);
   return (pid_t)tid;
 }
-
+/*----------------------------------------------------------------------------*/
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -167,7 +168,7 @@ start_process (void *file_name_)
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
-
+/*----------------------------------------------------------------------------*/
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -209,7 +210,7 @@ process_wait (pid_t child_pid)
 
   return exit_code;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Free the current process's resources. */
 void
 process_exit (void)
@@ -264,7 +265,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 }
-
+/*----------------------------------------------------------------------------*/
 /* Sets up the CPU for running user code in the current
    thread.
    This function is called on every context switch. */
@@ -280,7 +281,8 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+/*----------------------------------------------------------------------------*/
+
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
@@ -347,6 +349,7 @@ struct Elf32_Phdr
 static bool setup_stack (void **esp, const char *command, char **save_ptr);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 
+/*----------------------------------------------------------------------------*/
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
@@ -477,10 +480,9 @@ load (const char *file_name, void (**eip) (void), void **esp, char **save_ptr)
   lock_release (&filesys_lock);
   return success;
 }
-
-/* load() helpers. */
-
-
+/*----------------------------------------------------------------------------*/
+/* load() helpers.																														*/
+/*----------------------------------------------------------------------------*/
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
 static bool
@@ -525,7 +527,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
   /* It's okay. */
   return true;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
    memory are initialized, as follows:
@@ -587,7 +589,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     }
   return true;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
@@ -678,7 +680,7 @@ setup_stack (void **esp, const char *command, char **save_ptr)
 
   return success;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.
    If WRITABLE is true, the user process may modify the page;
@@ -698,11 +700,9 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
-
-/*
- * Process information functions
- */
-
+/*----------------------------------------------------------------------------*/
+/* Process information function																								*/
+/*----------------------------------------------------------------------------*/
 /* Create child process information */
 struct child_info *
 create_child_info (pid_t pid)
@@ -726,7 +726,7 @@ create_child_info (pid_t pid)
   
   return chinfo;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Get child PID's information */
 struct child_info *
 get_child_info (pid_t pid)
@@ -744,7 +744,7 @@ get_child_info (pid_t pid)
 
   return NULL;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Remove child information from thread's child list */
 void
 remove_child_info (struct child_info *chinfo)
@@ -752,7 +752,7 @@ remove_child_info (struct child_info *chinfo)
   list_remove (&chinfo->child_elem);
   free (chinfo);
 }
-
+/*----------------------------------------------------------------------------*/
 /* Destory child list of process */
 void
 destroy_child_list (void)
@@ -767,7 +767,7 @@ destroy_child_list (void)
     free (chinfo);
   }
 }
-
+/*----------------------------------------------------------------------------*/
 /* Get file info from thread's open file list */
 struct file_info *
 get_file_info (int fd)
@@ -785,7 +785,7 @@ get_file_info (int fd)
 
   return NULL;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Destroy open file list of process */
 void
 destroy_file_list (void)
@@ -801,3 +801,4 @@ destroy_file_list (void)
     free (finfo);
   }
 }
+/*----------------------------------------------------------------------------*/
