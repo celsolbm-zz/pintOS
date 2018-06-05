@@ -24,6 +24,7 @@ struct dir_entry
 
 static bool dir_is_empty (struct inode *);
 
+/*----------------------------------------------------------------------------*/
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
 bool
@@ -45,7 +46,7 @@ dir_create (block_sector_t sector, size_t entry_cnt)
 
   return true;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Opens and returns the directory for the given INODE, of which
    it takes ownership.  Returns a null pointer on failure. */
 struct dir *
@@ -65,7 +66,7 @@ dir_open (struct inode *inode)
       return NULL; 
     }
 }
-
+/*----------------------------------------------------------------------------*/
 /* Opens the root directory and returns a directory for it.
    Return true if successful, false on failure. */
 struct dir *
@@ -73,7 +74,7 @@ dir_open_root (void)
 {
   return dir_open (inode_open (ROOT_DIR_SECTOR));
 }
-
+/*----------------------------------------------------------------------------*/
 /* Opens and returns a new directory for the same inode as DIR.
    Returns a null pointer on failure. */
 struct dir *
@@ -81,7 +82,7 @@ dir_reopen (struct dir *dir)
 {
   return dir_open (inode_reopen (dir->inode));
 }
-
+/*----------------------------------------------------------------------------*/
 /* Destroys DIR and frees associated resources. */
 void
 dir_close (struct dir *dir) 
@@ -92,14 +93,14 @@ dir_close (struct dir *dir)
       free (dir);
     }
 }
-
+/*----------------------------------------------------------------------------*/
 /* Returns the inode encapsulated by DIR. */
 struct inode *
 dir_get_inode (struct dir *dir) 
 {
   return dir->inode;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Searches DIR for a file with the given NAME.
    If successful, returns true, sets *EP to the directory entry
    if EP is non-null, and sets *OFSP to the byte offset of the
@@ -127,7 +128,7 @@ lookup (const struct dir *dir, const char *name,
       }
   return false;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Searches DIR for a file with the given NAME
    and returns true if one exists, false otherwise.
    On success, sets *INODE to an inode for the file, otherwise to
@@ -164,7 +165,7 @@ dir_lookup (const struct dir *dir, const char *name,
 
   return *inode != NULL;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Adds a file named NAME to DIR, which must not already contain a
    file by that name.  The file's inode is in sector
    INODE_SECTOR.
@@ -214,7 +215,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
  done:
   return success;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Removes any entry for NAME in DIR.
    Returns true if successful, false on failure,
    which occurs only if there is no file with the given NAME. */
@@ -254,7 +255,7 @@ dir_remove (struct dir *dir, const char *name)
   inode_close (inode);
   return success;
 }
-
+/*----------------------------------------------------------------------------*/
 /* Reads the next directory entry in DIR and stores the name in
    NAME.  Returns true if successful, false if the directory
    contains no more entries. */
@@ -265,12 +266,15 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
+			inode_lock_acquire (dir_get_inode (dir));
       dir->pos += sizeof e;
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
+					inode_lock_release (dir_get_inode (dir));
           return true;
         } 
+			inode_lock_release (dir_get_inode (dir));
     }
   return false;
 }
@@ -402,6 +406,7 @@ get_target_name (const char *path)
 	return target;
 }
 /*----------------------------------------------------------------------------*/
+/* Check whether directory is empty */
 static bool
 dir_is_empty (struct inode *inode)
 {

@@ -44,6 +44,7 @@ void process_activate (void);
 struct file_info {
   int fd;
   struct file *file;
+	struct dir *dir;
   struct list_elem file_elem;
 };
 

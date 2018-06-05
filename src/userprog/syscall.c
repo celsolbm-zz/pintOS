@@ -246,6 +246,7 @@ open (const char *file)
   struct thread *cur = thread_current ();
   struct file_info *finfo;
   struct file *temp_file;
+	struct inode *inode;
 
   temp_file = filesys_open (file);
   if (temp_file == NULL)
@@ -259,6 +260,9 @@ open (const char *file)
   finfo->fd = cur->min_fd;
   cur->min_fd++;
   finfo->file = temp_file;
+	
+	inode = file_get_inode (temp_file);
+	finfo->dir = inode_is_dir (inode) ? dir_open (inode) : NULL;
 
   list_push_back (&cur->open_file, &finfo->file_elem);
 
@@ -487,7 +491,20 @@ mkdir (const char *dir)
 bool
 readdir (int fd, char *name)
 {
-	return false;
+  struct file_info *finfo;
+	struct inode *inode;
+	struct dir *dir;
+
+	finfo = get_file_info (fd);
+	inode = file_get_inode (finfo->file);
+	if (!inode_is_dir (inode))
+		return false;
+
+	dir = finfo->dir;
+	if (dir == NULL)
+		return false;
+
+	return dir_readdir (dir, name);
 }
 /*----------------------------------------------------------------------------*/
 bool
