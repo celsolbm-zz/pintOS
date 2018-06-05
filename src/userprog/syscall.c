@@ -157,9 +157,7 @@ syscall_handler (struct intr_frame *f)
   }
 }
 /*----------------------------------------------------------------------------*/
-/*
- * System call
- */
+/* System call																																*/
 /*----------------------------------------------------------------------------*/
 void
 halt (void)
@@ -230,8 +228,7 @@ remove (const char *file)
 {
   bool ret;
 
-	if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
+	lock_acquire (&filesys_lock);
   ret = filesys_remove (file);
   lock_release (&filesys_lock);
 
@@ -273,8 +270,7 @@ filesize (int fd)
   int ret;
   struct file_info *finfo;
 
-	if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
+	lock_acquire (&filesys_lock);
 
   finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -308,8 +304,7 @@ read (int fd, void *buffer, unsigned size)
     return (int)size;
   }
 
-  if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
+	lock_acquire (&filesys_lock);
   
 	finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -347,8 +342,7 @@ write (int fd, const void *buffer, unsigned size)
     return (int)size;
   }
 
-	if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
+	lock_acquire (&filesys_lock);
 
   finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -375,8 +369,7 @@ seek (int fd, unsigned position)
 {
   struct file_info *finfo;
 
-	if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
+	lock_acquire (&filesys_lock);
 
   finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -394,8 +387,7 @@ tell (int fd)
   struct file_info *finfo;
   unsigned ret;
 
-	if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
+	lock_acquire (&filesys_lock);
 
   finfo = get_file_info (fd);
   if (finfo == NULL) {
@@ -414,8 +406,7 @@ close (int fd)
 {
   struct file_info *finfo;
 
-	if (!lock_held_by_current_thread (&filesys_lock))
-		lock_acquire (&filesys_lock);
+	lock_acquire (&filesys_lock);
 
   finfo = get_file_info (fd);
   if (finfo == NULL) {
