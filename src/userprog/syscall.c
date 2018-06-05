@@ -436,7 +436,25 @@ close (int fd)
 bool
 chdir (const char *dir)
 {
-	return false;
+	struct dir *parent_dir;		/* parent dir of destination dir */
+	char *target_name;
+	struct inode *inode;
+	struct thread *cur;
+
+	parent_dir = parse_dir_name (dir);
+	if (parent_dir == NULL)
+		return false;
+
+	target_name = get_target_name (dir);
+	if (!dir_lookup (parent_dir, target_name, &inode))
+		return false;
+
+	/* Change current thread's working directory */
+	cur = thread_current ();
+	dir_close (cur->curdir);
+	cur->curdir = dir_open (inode);
+
+	return true;
 }
 /*----------------------------------------------------------------------------*/
 bool

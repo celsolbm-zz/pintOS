@@ -46,23 +46,19 @@ bool
 filesys_create (const char *_name, off_t initial_size) 
 {
   block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = parse_dir_name (_name);
+	char *target_name = get_target_name (_name);
   bool success;
-	char *name, *save_ptr;
-	struct inode *inode;
 
-#if 0
-	name = (char *)_name;
-	name = strtok_r (name, "/", &save_ptr);
-	printf ("(filesys_create) name divided by /: %s\n", name);
-#endif
-	
 	success = (dir != NULL
-						&& free_map_allocate (1, &inode_sector)
-						&& inode_create (inode_sector, initial_size, false)
-						&& dir_add (dir, _name, inode_sector));
+						 && !inode_is_removed (dir_get_inode (dir))
+						 && free_map_allocate (1, &inode_sector)
+						 && inode_create (inode_sector, initial_size, false)
+						 && dir_add (dir, target_name, inode_sector));
+
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
+
   dir_close (dir);
 
   return success;
@@ -76,7 +72,8 @@ filesys_create (const char *_name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = parse_dir_name (name);
+	char *target_name = get_target_name (name);
   struct inode *inode = NULL;
 
   if (dir != NULL)

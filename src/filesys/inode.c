@@ -350,13 +350,6 @@ inode_allow_write (struct inode *inode)
   inode->deny_write_cnt--;
 }
 /*----------------------------------------------------------------------------*/
-/* Set parent directory of child directory in inode */
-void
-inode_set_parent_dir (struct inode *child_dir, struct inode *parent_dir)
-{
-	child_dir->data.parent_dir = parent_dir->sector;
-}
-/*----------------------------------------------------------------------------*/
 /* Returns the length, in bytes, of INODE's data. */
 off_t
 inode_length (const struct inode *inode)
@@ -364,19 +357,7 @@ inode_length (const struct inode *inode)
   return inode->data.length;
 }
 /*----------------------------------------------------------------------------*/
-/* Return inode is for directory or not */
-uint32_t
-inode_is_dir (struct inode *inode)
-{
-	return inode->data.is_dir;
-}
-/*----------------------------------------------------------------------------*/
-/* Return inode is removed or not */
-bool
-inode_is_removed (struct inode *inode)
-{
-	return inode->removed;
-}
+/* Added functions																														*/
 /*----------------------------------------------------------------------------*/
 /* Acquire lock of inode */
 void
@@ -390,5 +371,33 @@ void
 inode_lock_release (struct inode *inode)
 {
 	lock_release (&inode->inode_lock);
+}
+/*----------------------------------------------------------------------------*/
+/* Set parent directory of child directory in inode */
+void
+inode_set_parent_dir (struct inode *child_dir, struct inode *parent_dir)
+{
+	child_dir->data.parent_dir = parent_dir->sector;
+}
+/*----------------------------------------------------------------------------*/
+/* Check whether inode is for directory  */
+bool
+inode_is_dir (struct inode *inode)
+{
+	return (bool)inode->data.is_dir;
+}
+/*----------------------------------------------------------------------------*/
+/* Return inode is removed or not */
+bool
+inode_is_removed (struct inode *inode)
+{
+	return inode->removed;
+}
+/*----------------------------------------------------------------------------*/
+/* Get parent of inode INODE sector number */
+block_sector_t
+inode_get_parent (struct inode *inode)
+{
+	return inode->data.parent_dir;
 }
 /*----------------------------------------------------------------------------*/

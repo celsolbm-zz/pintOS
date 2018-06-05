@@ -139,10 +139,26 @@ dir_lookup (const struct dir *dir, const char *name,
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
-	if (lookup (dir, (const char *)name, &e, NULL))
+	if (!strcmp (name, ".")) {
+		/* Reopen current directory DIR if not removed */
+		if (inode_is_removed (dir->inode))
+			return NULL;
+
+		*inode = inode_reopen (dir->inode);
+	}
+	else if (!strcmp (name, "..")) {
+		/* Open parent directory of DIR if DIR is not removed */
+		if (inode_is_removed (dir->inode))
+			return NULL;
+
+		*inode = inode_open (inode_get_parent (dir->inode));
+	}
+	else if (lookup (dir, (const char *)name, &e, NULL)) {
 		*inode = inode_open (e.inode_sector);
-	else
+	}
+	else {
 		*inode = NULL;
+	}
 
   return *inode != NULL;
 }
@@ -183,10 +199,14 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
     if (!e.in_use)
       break;
 
-  /* Write slot. */
+  /* Write slot.
+	   inode structure is updated. */
+	inode_lock_acquire (dir_get_inode (dir));
   e.in_use = true;
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
+	inode_lock_release (dir_get_inode (dir));
+
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
@@ -301,7 +321,9 @@ parse_dir_name (const char *_path)
 			}
 
 			/* Open current directory's parent directory */
-			/* XXX */
+			inode_open (inode_get_parent (ret_dir->inode));
+			dir_close (ret_dir);
+			ret_dir = dir_open (inode);
 		}
 		else {
 			/* Whether cur_name is in the current directory */
@@ -329,10 +351,6 @@ parse_dir_name (const char *_path)
 	}
 
 	free (path);
-
-#ifdef DEBUG_FILESYS
-	printf ("<parse_dir_name> parsing end\n");
-#endif
 
 	return ret_dir;
 }
