@@ -31,9 +31,7 @@
 static void syscall_handler (struct intr_frame *);
 static int child_number = 0;
 
-/*
- * Helper functions
- */
+/* Helper functions */
 static void check_user_ptr (const void *uptr, void *esp);
 static void check_user_string (const char *ustr, void *esp);
 static void check_user_buffer (const void *uptr, unsigned size, void *esp);
