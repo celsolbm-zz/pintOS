@@ -60,9 +60,6 @@ struct child_info {
   struct semaphore exec_sema;
   struct semaphore exit_sema;;
   int exit_code;
-#ifdef FILESYS
-	struct dir *parent_dir;
-#endif
   struct list_elem child_elem;
 };
 

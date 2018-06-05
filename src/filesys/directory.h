@@ -6,7 +6,7 @@
 #include "devices/block.h"
 #include "filesys/inode.h"
 
-// #define DEBUG_FILESYS
+#define DEBUG_FILESYS
 
 /* Maximum length of a file name component.
    This is the traditional UNIX maximum length.
@@ -30,6 +30,6 @@ bool dir_add (struct dir *, const char *name, block_sector_t);
 bool dir_remove (struct dir *, const char *name);
 bool dir_readdir (struct dir *, char name[NAME_MAX + 1]);
 
-struct dir *dir_getdir (const char *path);
+struct dir *parse_dir_name (const char *path);
 
 #endif /* filesys/directory.h */

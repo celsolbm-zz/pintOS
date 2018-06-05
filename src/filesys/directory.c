@@ -19,7 +19,6 @@ struct dir_entry
   {
 		block_sector_t inode_sector;	/* Sector number of header. */
     char name[NAME_MAX + 1];			/* Null terminated file name. */
-		bool is_dir;									/* Is this entry for another directory? */
     bool in_use;									/* In use or free? */
   };
 
@@ -28,7 +27,21 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+	struct thread *cur;
+	struct inode *new_dir_inode;
+
+	if (!inode_create (sector, entry_cnt * sizeof(struct dir_entry), true))
+		return false;
+
+	/* Current thread's working directory becomes new directory's parent */
+	new_dir_inode = inode_open (sector);
+	cur = thread_current ();
+	if (cur->curdir != NULL)
+		inode_set_parent_dir (new_dir_inode, cur->curdir->inode);
+
+	inode_close (new_dir_inode);
+
+  return true;
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -237,64 +250,79 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   return false;
 }
 /*----------------------------------------------------------------------------*/
-#if 0
 /* Parse directory name and return final directory */
 struct dir *
-dir_getdir (const char *_path)
+parse_dir_name (const char *_path)
 {
-	char path[strlen (_path) + 1], *save_ptr;
-	char *token, *next_token;
-	struct dir *dir;
+	char *path;
+	char *cur_name, *next_name, *save_ptr;	/* for path parsing */
+	struct thread *cur;
+	struct dir *ret_dir;
 	struct inode *inode;
 
-	strlcpy (path, _path, strlen(_path) + 1);
-	
-	/* Check whether path is relative or absolute */
-	if ((path[0] == '/') || (thread_current ()->curdir == NULL))
-		dir = dir_open_root ();
+	path = malloc (sizeof(char) * (strlen (_path) + 1));
+	if (path == NULL)
+		PANIC ("(parse_dir_name) Can't allocate memory for path name");
+
+	cur = thread_current ();
+
+	/* Copy path name and check whether path is absolute */
+	strlcpy (path, _path, strlen (_path) + 1);
+	if ((path[0] == '/') || (cur->curdir == NULL))
+		ret_dir = dir_open_root ();
 	else
-		dir = dir_reopen (thread_current ()->curdir);
+		ret_dir = dir_reopen (cur->curdir);
 
-	token = strtok_r (path, "/", &save_ptr);
-	for (next_token = strtok_r (NULL, "/", &save_ptr);
-			 next_token != NULL;
-			 next_token = strtok_r (NULL, "/", &save_ptr)) {
-		
-		/* If token is ".", current directory */
-		if (strcmp (token, ".") == 0) {
-			if (inode_is_removed (dir->inode))
+	/* Parse passed path name */
+#ifdef DEBUG_FILESYS
+	printf ("parsing start, path[0]: %c\n", path[0]);
+#endif
+	cur_name = strtok_r (path, "/", &save_ptr);
+	while (cur_name != NULL) {
+#ifdef DEBUG_FILESYS
+		printf ("In while statement, ");
+		printf ("cur_name: %s\n", cur_name);
+#endif
+		next_name = strtok_r (NULL, "/", &save_ptr);
+
+		if (!strcmp (cur_name, ".")) {
+			/* Read from current working directory */
+			if (inode_is_removed (ret_dir->inode))
 				return NULL;
-			continue;
 		}
-		else if (strcmp(token, "..") == 0) {
-			if (inode_is_removed (dir->inode))
+		else if (!strcmp (cur_name, "..")) {
+			/* Read from current working directory's parent directory */
+			if (inode_is_removed (ret_dir->inode))
 				return NULL;
 
-			inode = inode_open (inode_get_parent (dir->inode));
-			dir_close (dir);
-			dir = dir_open (inode);
+			/* Open current directory's parent directory */
+			/* XXX */
 		}
 		else {
-			if (!dir_lookup (dir, token, &inode)) {
-				/* If directory not exists, return NULL */
-				dir_close (dir);
+			/* Whether cur_name is in the current directory */
+			if (!dir_lookup (ret_dir, cur_name, &inode)) {
+#ifdef DEBUG_FILESYS
+				printf ("Can't find %s in directory\n", cur_name);
+#endif
+				dir_close (ret_dir);
 				return NULL;
 			}
 
-			if (inode_is_dir (inode) == 0) {
-				/* If path indicateds file, return NULL */
-				dir_close (dir);
+			/* Whether cur_name indicates file */
+			if (!inode_is_dir (inode)) {
+				dir_close (ret_dir);
 				return NULL;
 			}
 
-			dir_close (dir);
-			dir = dir_open (inode);
+			dir_close (ret_dir);
+			ret_dir = dir_open (inode);
 		}
 
-		token = next_token;
+		cur_name = next_name;
 	}
 
-	return dir;
+	free (path);
+
+	return ret_dir;
 }
-#endif
 /*----------------------------------------------------------------------------*/

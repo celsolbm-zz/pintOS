@@ -91,6 +91,11 @@ start_process (void *file_name_)
 
 	cur = thread_current ();
 
+#ifdef FILESYS
+	if (cur->curdir == NULL)
+		cur->curdir = dir_open_root ();
+#endif
+
 #ifdef VM
 	////////////////// CELSO STUFF IS IN HERE
 
@@ -128,21 +133,6 @@ start_process (void *file_name_)
 	//blah=&bla;
 #endif
 /////////////////// end CELSO STUFF IS IN HERE
-#endif
-
-#ifdef FILESYS
-	/* Process's initial working directory is root.
-	   If parent's working directory exists, inherit that. */
-	cur->curdir = (cur->chinfo_by_parent->parent_dir != NULL) ?
-								dir_reopen (cur->chinfo_by_parent->parent_dir) :
-								dir_open_root ();
-	if (cur->curdir == NULL)
-		PANIC ("CANNOT OPEN ROOT DIRECTORY FOR STARTING PROCESS!!!\n");
-	
-#ifdef DEBUG_FILESYS
-	printf ("SECTOR # FOR PROCESS \"%s\" IN PROCESS_START: %u\n",
-					cur->name, cur->curdir->inode->sector);
-#endif
 #endif
 
   /* Initialize interrupt frame and load executable. */
@@ -631,6 +621,7 @@ setup_stack (void **esp, const char *command, char **save_ptr)
   int argc = 0;
   int argv_size = 4;
   char *token, *argv_addr;
+	size_t char_double_ptr;
 
   /* Setting up ARGV */
   for (token = (char *)command; token != NULL;
@@ -670,9 +661,10 @@ setup_stack (void **esp, const char *command, char **save_ptr)
   }
 
   /* Push ARGV */
+	char_double_ptr = sizeof(char **);
   argv_addr = (char *)*esp;
-  *esp -= sizeof(char **);
-  memcpy (*esp, &argv_addr, sizeof(char **));
+  *esp -= char_double_ptr;
+  memcpy (*esp, &argv_addr, char_double_ptr); 
 
   /* Push ARGC */
   *esp -= sizeof(int);
@@ -729,9 +721,6 @@ create_child_info (pid_t pid)
   sema_init (&chinfo->exec_sema, 0);
   sema_init (&chinfo->exit_sema, 0);
   chinfo->exit_code = 0;
-#ifdef FILESYS
-	chinfo->parent_dir = cur->curdir;
-#endif
 
   list_push_back (&cur->child_list, &chinfo->child_elem);
   
@@ -774,6 +763,7 @@ destroy_child_list (void)
   while (!list_empty (&cur->child_list)) {
     e = list_pop_front (&cur->child_list);
     struct child_info *chinfo = list_entry (e, struct child_info, child_elem);
+		list_remove (&chinfo->child_elem);
     free (chinfo);
   }
 }
@@ -806,6 +796,8 @@ destroy_file_list (void)
   while (!list_empty (&cur->open_file)) {
     e = list_pop_front (&cur->open_file);
     struct file_info *finfo = list_entry (e, struct file_info, file_elem);
+		file_close (finfo->file);
+		list_remove (&finfo->file_elem);
     free (finfo);
   }
 }

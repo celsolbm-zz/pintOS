@@ -214,6 +214,11 @@ thread_create (const char *name, int priority,
 	strlcpy (t->parent_name, thread_name(), sizeof t->parent_name);
 #endif
 
+#ifdef FILESYS
+	t->curdir = (thread_current ()->curdir != NULL) ?
+							dir_reopen (thread_current ()->curdir) : NULL;
+#endif
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -490,10 +495,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->chinfo_by_parent = NULL;
   t->min_fd = INITIAL_FD; /* Initial fd is 2 */
   t->executable = NULL;
-
-#ifdef FILESYS
-	t->curdir = NULL;
-#endif
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

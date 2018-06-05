@@ -438,24 +438,18 @@ chdir (const char *dir)
 bool
 mkdir (const char *dir)
 {
-	struct thread *cur;
-	struct dir *search_dir;			/* directory where searching occurs */
+	struct dir *new_dir;				/* directory to be made */
 	struct inode *inode;
-	bool abs_path;							/* is path argument absolute? */
 
-	cur = thread_current ();
-	abs_path = (dir[0] == '/');
-
-	/* Check whether path is absolute or not */
-	search_dir = abs_path ? dir_open_root () : cur->curdir;
+	new_dir = parse_dir_name (dir);
 	
+#if 0
 	/* Check whether directory DIR already exists */
 	if (dir_lookup ((const struct dir *)search_dir, dir, &inode))
 		return false;
 
 	return false;
 
-#if 0
 	/* Search through directory tree */
 	for (dir_name = strtok_r (dir_name, "/", &save_ptr);
 			 dir_name != NULL;
