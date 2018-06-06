@@ -196,15 +196,14 @@ inode_extend (struct inode *inode, off_t length)
 			}
 
 			indirect_left = 128 - indirect_ofs;
-			a = (extend_sector_cnt >= 128) ?
-					128 : extend_sector_cnt;
+			a = (extend_sector_cnt >= 128) ? 128 : extend_sector_cnt;
 			make_sectors = (a > indirect_left) ? indirect_left : a;
 			for (i = 0; i < make_sectors; i++) {
 				free_map_allocate (1, &indirect.inode[indirect_ofs]);
 				indirect_ofs++;
 			}
 
-			current_sector -= make_sectors;
+			current_sector += make_sectors;
 			extend_sector_cnt -= make_sectors;
 			block_write (fs_device, d_indirect.inode[indirect_idx],
 									 (void *)&indirect);
