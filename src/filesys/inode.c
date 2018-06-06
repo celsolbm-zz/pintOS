@@ -11,16 +11,23 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
+/* # of inode pointer in each indirect inode block */
+#define INODE_PTR_NUMBER (BLOCK_SECTOR_SIZE / sizeof(block_sector_t))
+
+#define INDEXED_FILE
+
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t start;				/* First data sector. */
-    off_t length;								/* File size in bytes. */
-    unsigned magic;							/* Magic number. */
-		uint32_t is_dir;						/* Is this inode for directory? */
-		block_sector_t parent_dir;	/* Parent dir's sector if this is dir inode */
-    uint32_t unused[123];				/* Not used. */
+    block_sector_t start;							/* First data sector. */
+    off_t length;											/* File size in bytes. */
+    unsigned magic;										/* Magic number. */
+		uint32_t is_dir;									/* Is this inode for directory? */
+		block_sector_t parent_dir;				/* Parent dir's sector for dir inode */
+		block_sector_t d_indirect_sector;	/* Sector # of double indirect ptr */
+		uint32_t sector_cnt;							/* # of data sectors for this inode */
+    uint32_t unused[121];							/* Not used. */
   };
 
 /* In-memory inode. */
@@ -34,6 +41,11 @@ struct inode
     struct inode_disk data;			/* Inode content. */
 		struct lock inode_lock;			/* Inode lock for synchronization */
   };
+
+/* One indirect inode sector */
+struct indirect_sector {
+	block_sector_t inode[INODE_PTR_NUMBER];
+};
 
 /* List of open inodes, so that opening a single inode twice
    returns the same `struct inode'. */
@@ -58,10 +70,27 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
   ASSERT (inode != NULL);
+#ifndef INDEXED_FILE
   if (pos < inode->data.length)
     return inode->data.start + pos / BLOCK_SECTOR_SIZE;
   else
     return -1;
+#else
+	uint32_t sector_num = pos / BLOCK_SECTOR_SIZE;
+	uint32_t indirect_num = sector_num / INODE_PTR_NUMBER;
+	uint32_t indirect_ofs = sector_num % INODE_PTR_NUMBER;
+	struct indirect_sector d_indirect;
+	struct indirect_sector indirect;
+
+	if (pos >= inode->data.length)
+		return -1;
+
+	/* Read double, single indirect sector from disk */
+	block_read (fs_device, inode->data.d_indirect_sector, (void *)&d_indirect);
+	block_read (fs_device, d_indirect.inode[indirect_num], (void *)&indirect);
+
+	return indirect.inode[indirect_ofs];
+#endif
 }
 /*----------------------------------------------------------------------------*/
 /* end of static function for inode																						*/
@@ -81,6 +110,12 @@ bool
 inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
   struct inode_disk *disk_inode = NULL;
+	static char zeros[BLOCK_SECTOR_SIZE];
+#ifdef INDEXED_FILE
+	int counter;
+	size_t i, data_sectors;	/* # of data region sectors for this new inode */
+	struct indirect_sector *d_indirect, *indirect;
+#endif
   bool success = false;
 
   ASSERT (length >= 0);
@@ -90,6 +125,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
   disk_inode = calloc (1, sizeof *disk_inode);
+#ifndef INDEXED_FILE
   if (disk_inode != NULL)
     {
       size_t sectors = bytes_to_sectors (length);
@@ -101,7 +137,6 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
           block_write (fs_device, sector, disk_inode);
           if (sectors > 0) 
             {
-              static char zeros[BLOCK_SECTOR_SIZE];
               size_t i;
               
               for (i = 0; i < sectors; i++) 
@@ -111,6 +146,74 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
         } 
       free (disk_inode);
     }
+#else
+	if (disk_inode != NULL) {
+		size_t sectors = bytes_to_sectors (length);
+		disk_inode->length = length;
+		disk_inode->magic = INODE_MAGIC;
+		disk_inode->is_dir = is_dir;
+		disk_inode->sector_cnt = sectors;
+
+		/* Allocate double indirect inode sector */
+		if (free_map_allocate (1, &disk_inode->d_indirect_sector)) {
+			counter = 0;
+			d_indirect = malloc (sizeof(struct indirect_sector));
+			if (d_indirect == NULL) {
+				free_map_release (disk_inode->d_indirect_sector, 1);
+				free (disk_inode);
+				goto done;
+			}
+
+			while (sectors > 0) {
+				data_sectors = (sectors >= INODE_PTR_NUMBER) ?
+											 INODE_PTR_NUMBER : sectors;
+
+				/* Allocate indirect inode sector */
+				if (free_map_allocate (1, &d_indirect->inode[counter])) {
+					indirect = malloc (sizeof(struct indirect_sector));
+					if (indirect == NULL) {
+						disk_inode->sector_cnt -= sectors;
+						free_map_release (d_indirect->inode[counter], 1);
+						free (d_indirect);
+						free (disk_inode);
+						goto done;
+					}
+
+					for (i = 0; i < data_sectors; i++) {
+						/* Allocate direct inode sector */
+						if (!free_map_allocate (1, &indirect->inode[i]))
+							PANIC ("<inode_create> fail to allocate direct inode");
+
+						/* Write zero data in allocated direct inode sector */
+						block_write (fs_device, indirect->inode[i], zeros);
+					}
+
+					/* Write sector for indirect inode */
+					block_write (fs_device, d_indirect->inode[counter],
+											 (void *)indirect);
+					free (indirect);
+				}
+				else {
+					PANIC ("<inode_create> fail to allocate indirect inode");
+				}
+
+				counter++;
+				sectors -= data_sectors;
+			}
+
+			/* Write sector for double indirect inode */
+			block_write (fs_device, disk_inode->d_indirect_sector,
+									 (void *)d_indirect);
+			free (d_indirect);
+		}
+	}
+
+	block_write (fs_device, sector, (void *)disk_inode);
+	free (disk_inode);
+	success = true;
+#endif
+
+done:
   return success;
 }
 /*----------------------------------------------------------------------------*/
