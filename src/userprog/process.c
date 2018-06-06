@@ -92,11 +92,6 @@ start_process (void *file_name_)
 
 	cur = thread_current ();
 
-#ifdef FILESYS
-	if (cur->curdir == NULL)
-		cur->curdir = dir_open_root ();
-#endif
-
 #ifdef VM
 	////////////////// CELSO STUFF IS IN HERE
 

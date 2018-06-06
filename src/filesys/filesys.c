@@ -63,7 +63,6 @@ filesys_create (const char *_name, off_t initial_size)
     free_map_release (inode_sector, 1);
 
   dir_close (dir);
-	free (target_name);
 
   return success;
 }
@@ -80,7 +79,8 @@ filesys_open (const char *name)
 	char *target_name = get_target_name (name);
   struct inode *inode = NULL;
 
-	if (target_name[strlen (target_name) - 1] == '/') {
+	printf ("<filesys_open> name: %s, target_name: %s\n", name, target_name);
+	if (*target_name == '\0') {
 		dir = dir_reopen (dir);
 		inode = dir_get_inode (dir);
 	}
@@ -89,7 +89,6 @@ filesys_open (const char *name)
 	}
 
   dir_close (dir);
-	free (target_name);
 
 	if (inode == NULL)
 		return NULL;
@@ -112,7 +111,6 @@ filesys_remove (const char *name)
   bool success = dir != NULL && dir_remove (dir, target_name);
 
   dir_close (dir); 
-	free (target_name);
 
   return success;
 }

@@ -228,9 +228,10 @@ remove (const char *file)
 {
   bool ret;
 
-	lock_acquire (&filesys_lock);
+	if (file == NULL)
+		return false;
+
   ret = filesys_remove (file);
-  lock_release (&filesys_lock);
 
   return ret;
 }
@@ -244,14 +245,15 @@ open (const char *file)
 	struct inode *inode;
 
   temp_file = filesys_open (file);
+	printf ("<open syscall> file name: %s, ", file);
+	printf ("temp_file: %s\n", (temp_file == NULL) ? "NULL" : "NOT NULL");
   if (temp_file == NULL)
 		return -1;
 
   finfo = malloc (sizeof(struct file_info));
-  if (finfo == NULL) {
-    lock_release (&filesys_lock);
+  if (finfo == NULL)
     return -1;
-  }
+
   finfo->fd = cur->min_fd;
   cur->min_fd++;
   finfo->file = temp_file;
@@ -332,6 +334,7 @@ write (int fd, const void *buffer, unsigned size)
 {
   int ret;
   struct file_info *finfo;
+	struct inode *inode;
 	void *kbuf;
 
 	if (size == 0)
@@ -349,6 +352,12 @@ write (int fd, const void *buffer, unsigned size)
     lock_release (&filesys_lock);
     return -1;
   }
+
+	inode = file_get_inode (finfo->file);
+	if (inode_is_dir (inode)) {
+		lock_release (&filesys_lock);
+		return -1;
+	}
 
   kbuf = malloc (size);
 	if (kbuf == NULL) {
@@ -406,18 +415,13 @@ close (int fd)
 {
   struct file_info *finfo;
 
-	lock_acquire (&filesys_lock);
-
   finfo = get_file_info (fd);
-  if (finfo == NULL) {
-    lock_release (&filesys_lock);
+  if (finfo == NULL)
     return;
-  }
 
   file_close (finfo->file);
   list_remove (&finfo->file_elem);
   free (finfo);
-  lock_release (&filesys_lock);
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FILESYS
@@ -471,8 +475,6 @@ mkdir (const char *dir)
 
 	if (parent_dir != NULL)
 		dir_close (parent_dir);
-
-	free (target_name);
 
 	return success;
 }
