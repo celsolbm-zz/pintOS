@@ -24,7 +24,7 @@ off_t inode_length (const struct inode *);
 void inode_lock_acquire (struct inode *);
 void inode_lock_release (struct inode *);
 void inode_set_parent_dir (struct inode *, struct inode *);
-bool inode_is_dir (struct inode *);
+uint32_t inode_is_dir (struct inode *);
 bool inode_is_removed (struct inode *);
 block_sector_t inode_get_parent (struct inode *);
 

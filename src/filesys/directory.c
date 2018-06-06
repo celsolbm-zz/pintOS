@@ -250,8 +250,9 @@ dir_remove (struct dir *dir, const char *name)
   if (inode == NULL)
     goto done;
 
-	if (inode_is_dir (inode) && !dir_is_empty (inode))
-		goto done;
+	if (inode_is_dir (inode))
+		if(!dir_is_empty (inode))
+			goto done;
 
   /* Erase directory entry. */
   e.in_use = false;
@@ -327,12 +328,12 @@ parse_dir_name (const char *_path)
 						cur_name, next_name);
 #endif
 
-		if (!strcmp (cur_name, ".")) {
+		if (strcmp (cur_name, ".") == 0) {
 			/* Read from current working directory */
 			if (inode_is_removed (ret_dir->inode))
 				return NULL;
 		}
-		else if (!strcmp (cur_name, "..")) {
+		else if (strcmp (cur_name, "..") == 0) {
 			/* Read from current working directory's parent directory */
 			if (inode_is_removed (ret_dir->inode))
 				return NULL;
@@ -349,14 +350,12 @@ parse_dir_name (const char *_path)
 				printf ("<parse_dir_name> Can't find %s in directory\n", cur_name);
 #endif
 				dir_close (ret_dir);
-				free (path);
 				return NULL;
 			}
 
 			/* Whether cur_name indicates file */
-			if (!inode_is_dir (inode)) {
+			if (inode_is_dir (inode) == 0) {
 				dir_close (ret_dir);
-				free (path);
 				return NULL;
 			}
 
@@ -370,22 +369,21 @@ parse_dir_name (const char *_path)
 		cur_name = next_name;
 	}
 
-	free (path);
-
 	return ret_dir;
 }
 /*----------------------------------------------------------------------------*/
 /* Parse path name and return last destination name.
 OBSOLUTE: Return value is malloced value, so caller must free that value */
 char *
-get_target_name (const char *path)
+get_target_name (const char *_path)
 {
-	char *target;
+	char *path, *target;
 
-	target = (char *)path;
+	path = (char *)_path;
+	target = path;
 	while (*path != '\0') {
 		if (*path == '/')
-			target = (char *)path + 1;
+			target = path + 1;
 
 		path++;
 	}
@@ -402,7 +400,7 @@ dir_is_empty (struct inode *inode)
 
 	for (ofs = 0; inode_read_at (inode, &e, sizeof(e), ofs) == sizeof(e);
 			 ofs += sizeof(e))  {
-		if (e.in_use)
+		if (e.in_use == true)
 			return false;
 	}
 

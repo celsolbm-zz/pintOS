@@ -7,8 +7,6 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 
-#include "threads/malloc.h"
-
 /* Partition that contains the file system. */
 struct block *fs_device;
 
@@ -75,17 +73,22 @@ filesys_create (const char *_name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = parse_dir_name (name);
-	char *target_name = get_target_name (name);
+  struct dir *dir;
+	char *target_name;
   struct inode *inode = NULL;
 
-	printf ("<filesys_open> name: %s, target_name: %s\n", name, target_name);
+  if (*name == '\0')
+    return NULL;
+
+  dir = parse_dir_name (name);
+  targer_name = get_target_name (name);
+
 	if (*target_name == '\0') {
 		dir = dir_reopen (dir);
 		inode = dir_get_inode (dir);
 	}
 	else if (dir != NULL) {
-    dir_lookup (dir, name, &inode);
+    dir_lookup (dir, target_name, &inode);
 	}
 
   dir_close (dir);

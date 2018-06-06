@@ -111,6 +111,7 @@ inode_destroy (struct inode *inode)
 	uint32_t d_idx; /* for double indirect inode */
 	uint32_t i_idx;	/* for single indirect inode */
 
+	free_map_release (inode->sector, 1);
 	d_indirect = malloc (sizeof(struct indirect_sector));
 	indirect = malloc (sizeof(struct indirect_sector));
 	
@@ -297,7 +298,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
 					indirect = malloc (sizeof(struct indirect_sector));
 					if (indirect == NULL) {
 						disk_inode->sector_cnt -= sectors;
-						free_map_release (d_indirect->inode[counter], 1);
+						//free_map_release (d_indirect->inode[counter], 1);
 						free (d_indirect);
 						free (disk_inode);
 						goto done;
@@ -342,8 +343,6 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
 	}
 
 	block_write (fs_device, sector, (void *)disk_inode);
-	printf ("=== <inode_create> ===\n");
-	PRINT_INODE_DISK (*disk_inode);
 	free (disk_inode);
 	success = true;
 #endif
@@ -443,6 +442,9 @@ inode_close (struct inode *inode)
 
       free (inode); 
     }
+
+  	if (lock_held_by_current_thread (&inode->inode_lock))
+		  inode_release (inode);
 }
 /*----------------------------------------------------------------------------*/
 /* Marks INODE to be deleted when it is closed by the last caller who
@@ -684,10 +686,10 @@ inode_set_parent_dir (struct inode *child_dir, struct inode *parent_dir)
 }
 /*----------------------------------------------------------------------------*/
 /* Check whether inode is for directory  */
-bool
+uint32_t
 inode_is_dir (struct inode *inode)
 {
-	return (bool)inode->data.is_dir;
+	return inode->data.is_dir;
 }
 /*----------------------------------------------------------------------------*/
 /* Return inode is removed or not */

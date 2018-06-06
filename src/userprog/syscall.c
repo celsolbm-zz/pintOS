@@ -215,10 +215,9 @@ create (const char *file, unsigned initial_size)
 {
   bool ret;
 
-	if (file == NULL)
-		exit (-1);
-
+	lock_acquire (&filesys_lock);
   ret = filesys_create (file, (off_t)initial_size);
+  lock_release (&filesys_lock);
 
   return ret;
 }
@@ -228,10 +227,9 @@ remove (const char *file)
 {
   bool ret;
 
-	if (file == NULL)
-		return false;
-
+	lock_acquire (&filesys_lock);
   ret = filesys_remove (file);
+  lock_release (&filesys_lock);
 
   return ret;
 }
@@ -244,24 +242,25 @@ open (const char *file)
   struct file *temp_file;
 	struct inode *inode;
 
+	lock_acquire (&filesys_lock);
+
   temp_file = filesys_open (file);
-	printf ("<open syscall> file name: %s, ", file);
-	printf ("temp_file: %s\n", (temp_file == NULL) ? "NULL" : "NOT NULL");
-  if (temp_file == NULL)
+  if (temp_file == NULL) {
+    lock_release (&filesys_lock);
 		return -1;
+  }
 
   finfo = malloc (sizeof(struct file_info));
   if (finfo == NULL)
     return -1;
-
-  finfo->fd = cur->min_fd;
-  cur->min_fd++;
-  finfo->file = temp_file;
 	
 	inode = file_get_inode (temp_file);
 	finfo->dir = inode_is_dir (inode) ? dir_open (inode) : NULL;
+  finfo->file = temp_file;
+  finfo->fd = cur->min_fd++;
 
   list_push_back (&cur->open_file, &finfo->file_elem);
+  lock_release (&filesys_lock);
 
   return finfo->fd;
 }
@@ -438,8 +437,10 @@ chdir (const char *dir)
 		return false;
 
 	target_name = get_target_name (dir);
-	if (!dir_lookup (parent_dir, target_name, &inode))
+	if (!dir_lookup (parent_dir, target_name, &inode)) {
+    dir_close (parent_dir);
 		return false;
+  }
 
 	/* Change current thread's working directory */
 	cur = thread_current ();
@@ -460,9 +461,6 @@ mkdir (const char *dir)
 
 	parent_dir = parse_dir_name (dir);
 	target_name = get_target_name (dir);
-	if (target_name[strlen (target_name) - 1] == '/')
-		target_name[strlen (target_name) - 1] = 0;
-
 	sector = INVALID_SECTOR;
 	success = (parent_dir != NULL
 						 && !dir_lookup (parent_dir, target_name, &inode)
