@@ -444,7 +444,7 @@ inode_close (struct inode *inode)
     }
 
   	if (lock_held_by_current_thread (&inode->inode_lock))
-		  inode_release (inode);
+		  inode_lock_release (inode);
 }
 /*----------------------------------------------------------------------------*/
 /* Marks INODE to be deleted when it is closed by the last caller who

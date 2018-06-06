@@ -81,7 +81,7 @@ filesys_open (const char *name)
     return NULL;
 
   dir = parse_dir_name (name);
-  targer_name = get_target_name (name);
+  target_name = get_target_name (name);
 
 	if (*target_name == '\0') {
 		dir = dir_reopen (dir);
