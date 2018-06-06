@@ -75,7 +75,7 @@ filesys_open (const char *name)
 {
   struct dir *dir;
 	char *target_name;
-  struct inode *inode = NULL;
+  struct inode *inode;
 
   if (*name == '\0')
     return NULL;

@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
 
+#include "filesys/inode.h"
 #include "threads/thread.h"
 
 //#define DEBUG_DIRECTORY
@@ -24,13 +25,13 @@ struct dir_entry
     bool in_use;									/* In use or free? */
   };
 
-#define PRINT_DIR_ENTRY(e)																					\
-	do {																															\
-		printf ("inode_sector: %u\n", e.inode_sector);									\
-		printf ("name: %s\n", e.name);																	\
-		printf ("in_use: %s\n", (e.in_use == true) ? "TRUE" : "FALSE");	\
-		printf ("\n");																									\
-	}	while (0)																												\
+#define PRINT_DIR_ENTRY(e)																						\
+	do {																																\
+		printf ("inode_sector: %u\n", (e).inode_sector);									\
+		printf ("name: %s\n", (strlen ((e).name) != 0) ? (e).name : "");	\
+		printf ("in_use: %s\n", ((e).in_use == true) ? "TRUE" : "FALSE");	\
+		printf ("\n");																										\
+	}	while (0)																													\
 
 static bool dir_is_empty (struct inode *);
 

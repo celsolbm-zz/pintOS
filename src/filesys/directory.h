@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "devices/block.h"
-#include "filesys/inode.h"
 
 /* Maximum length of a file name component.
    This is the traditional UNIX maximum length.
